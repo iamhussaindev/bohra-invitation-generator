@@ -53,8 +53,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const pngBuffer = canvas.toBuffer("image/png");
-    const base64 = `data:image/png;base64,${pngBuffer.toString("base64")}`;
+    const jpegBuffer = canvas.toBuffer("image/jpeg", { quality: 0.9 });
+    const base64 = `data:image/jpeg;base64,${jpegBuffer.toString("base64")}`;
 
     return NextResponse.json({ image: base64 });
   } catch (error) {

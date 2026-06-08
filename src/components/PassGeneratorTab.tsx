@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Download, RefreshCw, Share2, Trash2 } from "lucide-react";
+import { parseApiJson } from "@/lib/api-utils";
 import type { GuestEntry, GuestSection, OverlayCoords } from "@/lib/types";
 import { DEFAULT_COORDS } from "@/lib/types";
 import {
@@ -9,6 +10,7 @@ import {
   generateFallbackTemplate,
   generateRsvpCode,
 } from "@/lib/client-canvas";
+import { downloadInviteImage } from "@/lib/invite-image";
 import { getRsvpPageUrl, shareInviteWithImage } from "@/lib/share-utils";
 import { formatGuestName } from "@/lib/name-utils";
 
@@ -35,6 +37,7 @@ export function PassGeneratorTab({
 }: PassGeneratorTabProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [shareStatus, setShareStatus] = useState("");
+  const [isCanvasReady, setIsCanvasReady] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
   const [bulkProgress, setBulkProgress] = useState("");
@@ -42,7 +45,12 @@ export function PassGeneratorTab({
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !selectedGuest) return;
+    if (!canvas || !selectedGuest) {
+      setIsCanvasReady(false);
+      return;
+    }
+
+    setIsCanvasReady(false);
 
     if (uploadedTemplateImage) {
       const img = new Image();
@@ -54,7 +62,9 @@ export function PassGeneratorTab({
         if (!ctx) return;
         ctx.drawImage(img, 0, 0);
         drawGuestOverlay(ctx, selectedGuest, coords);
+        setIsCanvasReady(true);
       };
+      img.onerror = () => setErrorMsg("Could not load invitation template.");
     } else {
       canvas.width = 800;
       canvas.height = 1000;
@@ -65,37 +75,38 @@ export function PassGeneratorTab({
         gents: selectedGuest.gentsCount,
         kids: selectedGuest.kidsCount,
       });
+      setIsCanvasReady(true);
     }
   }, [selectedGuest, uploadedTemplateImage, coords]);
 
-  const generateServerImage = useCallback(
-    async (guest: GuestEntry) => {
-      const response = await fetch("/api/generate-invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          guest,
-          coords,
-          templateImage: uploadedTemplateImage,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to generate invite.");
-      return data.image as string;
-    },
-    [coords, uploadedTemplateImage]
-  );
+  const generateServerImage = useCallback(async (guest: GuestEntry) => {
+    const response = await fetch("/api/generate-invite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ guest, coords }),
+    });
+    const data = await parseApiJson<{ image?: string; error?: string }>(response);
+    if (!response.ok || !data.image) {
+      throw new Error(data.error || "Failed to generate invite.");
+    }
+    return data.image;
+  }, [coords]);
+
+  const getInviteImage = useCallback(async (): Promise<string> => {
+    if (!selectedGuest) throw new Error("No guest selected.");
+    return generateServerImage(selectedGuest);
+  }, [generateServerImage, selectedGuest]);
 
   const handleDownload = async () => {
     if (!selectedGuest) return;
     setIsGenerating(true);
     setErrorMsg("");
     try {
-      const image = await generateServerImage(selectedGuest);
-      const link = document.createElement("a");
-      link.download = `boarding-pass-${selectedGuest.cleanedNames.replace(/\s+/g, "_")}.png`;
-      link.href = image;
-      link.click();
+      const image = await getInviteImage();
+      await downloadInviteImage(
+        image,
+        `boarding-pass-${selectedGuest.cleanedNames.replace(/\s+/g, "_")}.png`
+      );
     } catch (error) {
       setErrorMsg(error instanceof Error ? error.message : "Download failed.");
     } finally {
@@ -111,7 +122,7 @@ export function PassGeneratorTab({
     try {
       const code = generateRsvpCode();
       const rsvpUrl = getRsvpPageUrl(selectedGuest, code);
-      const image = await generateServerImage(selectedGuest);
+      const image = await getInviteImage();
       const result = await shareInviteWithImage({
         imageDataUrl: image,
         guestName: selectedGuest.cleanedNames,
@@ -145,10 +156,7 @@ export function PassGeneratorTab({
         const guest = allGuests[i];
         setBulkProgress(`${i + 1} / ${allGuests.length}: ${guest.cleanedNames}`);
         const image = await generateServerImage(guest);
-        const link = document.createElement("a");
-        link.download = `boarding-pass-${guest.cleanedNames.replace(/\s+/g, "_")}.png`;
-        link.href = image;
-        link.click();
+        await downloadInviteImage(image, `boarding-pass-${guest.cleanedNames.replace(/\s+/g, "_")}.png`);
         await new Promise((resolve) => setTimeout(resolve, 400));
       }
       setBulkProgress(`Downloaded ${allGuests.length} invites`);
@@ -246,6 +254,10 @@ export function PassGeneratorTab({
         <canvas ref={canvasRef} className="max-w-full h-auto rounded-lg border border-slate-200 shadow-inner" />
       </div>
 
+      {!isCanvasReady && (
+        <p className="text-xs text-center text-slate-500">Preparing boarding pass preview...</p>
+      )}
+
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
@@ -254,7 +266,7 @@ export function PassGeneratorTab({
           className="bg-white border border-slate-300 text-slate-700 font-semibold text-sm py-3 rounded-xl flex items-center justify-center gap-2 disabled:opacity-60"
         >
           {isGenerating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          Download
+          {isGenerating ? "Preparing..." : "Download"}
         </button>
         <button
           type="button"
@@ -262,7 +274,7 @@ export function PassGeneratorTab({
           disabled={isGenerating || isBulkGenerating}
           className="bg-[#BF3B2B] text-white font-semibold text-sm py-3 rounded-xl flex items-center justify-center gap-2 disabled:opacity-60"
         >
-          <Share2 className="w-4 h-4" /> Share on WhatsApp
+          <Share2 className="w-4 h-4" /> {isGenerating ? "Preparing..." : "Share on WhatsApp"}
         </button>
       </div>
 

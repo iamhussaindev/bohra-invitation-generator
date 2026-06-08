@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, Plus, RefreshCw, Ticket, Trash2, Upload } from "lucide-react";
+import { useRef, useState } from "react";
+import { ChevronDown, Pencil, Plus, RefreshCw, Ticket, Trash2, Upload } from "lucide-react";
 import { capitalizeGuestName, formatGuestName } from "@/lib/name-utils";
 import type { GuestEntry, GuestSection } from "@/lib/types";
 
@@ -33,12 +33,25 @@ export function GuestListTab({
   onGeneratePass,
 }: GuestListTabProps) {
   const [collapsedSections, setCollapsedSections] = useState<Record<number, boolean>>({});
+  const [editingSectionIdx, setEditingSectionIdx] = useState<number | null>(null);
+  const sectionInputRef = useRef<HTMLInputElement>(null);
 
   const toggleSection = (sectionIdx: number) => {
     setCollapsedSections((prev) => ({
       ...prev,
       [sectionIdx]: !(prev[sectionIdx] ?? true),
     }));
+  };
+
+  const startEditingSection = (sectionIdx: number) => {
+    setEditingSectionIdx(sectionIdx);
+    requestAnimationFrame(() => sectionInputRef.current?.focus());
+  };
+
+  const finishEditingSection = (sectionIdx: number, value: string) => {
+    const name = capitalizeGuestName(value.trim()) || `Section ${sectionIdx + 1}`;
+    onUpdateSection(sectionIdx, name);
+    setEditingSectionIdx(null);
   };
 
   return (
@@ -95,7 +108,7 @@ export function GuestListTab({
               key={`section-${sectionIdx}`}
               className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden"
             >
-              <div className="bg-slate-50 px-4 py-3 flex justify-between items-center gap-2 border-b border-slate-100">
+              <div className="bg-slate-50 px-4 py-3 flex items-center gap-2 border-b border-slate-100">
                 <button
                   type="button"
                   onClick={() => toggleSection(sectionIdx)}
@@ -112,23 +125,43 @@ export function GuestListTab({
                   <span className="text-[10px] font-bold uppercase text-[#BF3B2B]">
                     Section {sectionIdx + 1}
                   </span>
-                  <input
-                    type="text"
-                    value={section.sectionName}
-                    onChange={(e) => onUpdateSection(sectionIdx, e.target.value)}
-                    onBlur={(e) => {
-                      const name =
-                        capitalizeGuestName(e.target.value.trim()) || `Section ${sectionIdx + 1}`;
-                      onUpdateSection(sectionIdx, name);
-                    }}
-                    className="w-full font-serif font-bold text-slate-900 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-red-300 focus:outline-none py-0.5"
-                  />
+                  {editingSectionIdx === sectionIdx ? (
+                    <input
+                      ref={sectionInputRef}
+                      type="text"
+                      value={section.sectionName}
+                      onChange={(e) => onUpdateSection(sectionIdx, e.target.value)}
+                      onBlur={(e) => finishEditingSection(sectionIdx, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") finishEditingSection(sectionIdx, e.currentTarget.value);
+                        if (e.key === "Escape") setEditingSectionIdx(null);
+                      }}
+                      className="w-full font-serif font-bold text-slate-900 bg-white border border-red-200 rounded-lg px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-red-300"
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => toggleSection(sectionIdx)}
+                      className="w-full text-left"
+                    >
+                      <h3 className="font-serif font-bold text-slate-900">{section.sectionName}</h3>
+                    </button>
+                  )}
                   <p className="text-[11px] text-slate-400">{section.entries.length} families</p>
                 </div>
                 <button
                   type="button"
+                  onClick={() => startEditingSection(sectionIdx)}
+                  className="p-2 text-slate-400 hover:text-[#BF3B2B] shrink-0"
+                  aria-label={`Edit ${section.sectionName}`}
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
                   onClick={() => onRemoveSection(sectionIdx)}
-                  className="p-2 text-slate-400 shrink-0"
+                  className="p-2 text-slate-400 hover:text-red-500 shrink-0"
+                  aria-label={`Delete ${section.sectionName}`}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

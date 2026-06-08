@@ -1,3 +1,5 @@
+import { compressDataUrlToJpeg, dataUrlToBlob } from "@/lib/invite-image";
+
 function getAppBaseUrl(): string {
   if (typeof window !== "undefined") return window.location.origin;
   return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -24,38 +26,9 @@ export function buildWhatsAppUrl(text: string): string {
 }
 
 async function imageFileFromDataUrl(dataUrl: string, filename: string): Promise<File> {
-  const image = await loadImage(dataUrl);
-  const maxWidth = 1600;
-  const scale = Math.min(1, maxWidth / image.width);
-  const width = Math.max(1, Math.round(image.width * scale));
-  const height = Math.max(1, Math.round(image.height * scale));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not prepare image for sharing.");
-
-  ctx.drawImage(image, 0, 0, width, height);
-
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (result) => (result ? resolve(result) : reject(new Error("Could not create share image."))),
-      "image/jpeg",
-      0.92
-    );
-  });
-
+  const jpegDataUrl = await compressDataUrlToJpeg(dataUrl);
+  const blob = await dataUrlToBlob(jpegDataUrl);
   return new File([blob], filename.replace(/\.png$/i, ".jpg"), { type: "image/jpeg" });
-}
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("Could not load invite image."));
-    image.src = src;
-  });
 }
 
 function triggerDownload(file: File) {
@@ -63,8 +36,11 @@ function triggerDownload(file: File) {
   const link = document.createElement("a");
   link.href = url;
   link.download = file.name;
+  link.style.display = "none";
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 export type ShareInviteResult = "shared" | "whatsapp" | "downloaded";
@@ -106,7 +82,13 @@ export async function shareInviteWithImage(options: {
   }
 
   triggerDownload(file);
-  window.open(buildWhatsAppUrl(text), "_blank", "noopener,noreferrer");
+
+  const whatsappWindow = window.open(buildWhatsAppUrl(text), "_blank");
+  if (!whatsappWindow) {
+    await navigator.clipboard.writeText(text);
+    throw new Error("Popup blocked. Image downloaded and RSVP text copied — paste in WhatsApp.");
+  }
+
   return "whatsapp";
 }
 
