@@ -5,11 +5,11 @@ import { Check, Download, RefreshCw, Share2, Trash2 } from "lucide-react";
 import type { GuestEntry, GuestSection, OverlayCoords } from "@/lib/types";
 import { DEFAULT_COORDS } from "@/lib/types";
 import {
-  buildRsvpUrl,
   drawGuestOverlay,
   generateFallbackTemplate,
   generateRsvpCode,
 } from "@/lib/client-canvas";
+import { getRsvpPageUrl, shareInviteWithImage } from "@/lib/share-utils";
 import { formatGuestName } from "@/lib/name-utils";
 
 interface PassGeneratorTabProps {
@@ -34,7 +34,7 @@ export function PassGeneratorTab({
   onSimulateRsvp,
 }: PassGeneratorTabProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [copiedLink, setCopiedLink] = useState("");
+  const [shareStatus, setShareStatus] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
   const [bulkProgress, setBulkProgress] = useState("");
@@ -107,22 +107,25 @@ export function PassGeneratorTab({
     if (!selectedGuest) return;
     setIsGenerating(true);
     setErrorMsg("");
+    setShareStatus("");
     try {
       const code = generateRsvpCode();
-      const rsvpUrl = buildRsvpUrl(selectedGuest, code);
-      const shareText = `✈ Your boarding pass for Nafeesa's 1st Birthday!\n\nPassenger: ${selectedGuest.cleanedNames}\nInvitees: ${selectedGuest.ladiesCount + selectedGuest.gentsCount} | Kids: ${selectedGuest.kidsCount}\n\nRSVP here: ${rsvpUrl}`;
+      const rsvpUrl = getRsvpPageUrl(selectedGuest, code);
+      const image = await generateServerImage(selectedGuest);
+      const result = await shareInviteWithImage({
+        imageDataUrl: image,
+        guestName: selectedGuest.cleanedNames,
+        invitees: selectedGuest.ladiesCount + selectedGuest.gentsCount,
+        kids: selectedGuest.kidsCount,
+        rsvpUrl,
+      });
 
-      if (navigator.share) {
-        await navigator.share({
-          title: "Nafeesa Airlines Boarding Pass",
-          text: shareText,
-          url: rsvpUrl,
-        });
+      if (result === "shared") {
+        setShareStatus("Shared boarding pass image with RSVP link.");
       } else {
-        await navigator.clipboard.writeText(shareText);
-        setCopiedLink(rsvpUrl);
-        setTimeout(() => setCopiedLink(""), 4000);
+        setShareStatus("Image downloaded — attach it in WhatsApp. RSVP link is pre-filled in the message.");
       }
+      setTimeout(() => setShareStatus(""), 5000);
     } catch (error) {
       if ((error as Error).name !== "AbortError") {
         setErrorMsg(error instanceof Error ? error.message : "Share failed.");
@@ -259,7 +262,7 @@ export function PassGeneratorTab({
           disabled={isGenerating || isBulkGenerating}
           className="bg-[#BF3B2B] text-white font-semibold text-sm py-3 rounded-xl flex items-center justify-center gap-2 disabled:opacity-60"
         >
-          <Share2 className="w-4 h-4" /> Share + RSVP
+          <Share2 className="w-4 h-4" /> Share on WhatsApp
         </button>
       </div>
 
@@ -277,9 +280,9 @@ export function PassGeneratorTab({
         <div className="bg-blue-50 border border-blue-200 text-blue-700 p-3 rounded-xl text-xs">{bulkProgress}</div>
       )}
 
-      {copiedLink && (
+      {shareStatus && (
         <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-xl text-xs">
-          Copied RSVP link: {copiedLink}
+          {shareStatus}
         </div>
       )}
 

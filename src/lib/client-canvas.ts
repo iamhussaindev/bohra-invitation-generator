@@ -135,19 +135,7 @@ export function generateFallbackTemplate(
   ctx.fillText("Please scan the RSVP Link to confirm attendance.", 230, 790);
 }
 
-export function buildRsvpUrl(
-  guest: { cleanedNames: string; ladiesCount: number; gentsCount: number; kidsCount: number },
-  code: string
-) {
-  const params = new URLSearchParams({
-    code,
-    g: guest.cleanedNames,
-    l: String(guest.ladiesCount),
-    gt: String(guest.gentsCount),
-    k: String(guest.kidsCount),
-  });
-  return `https://test.com/rsvp?${params.toString()}`;
-}
+export { getRsvpPageUrl as buildRsvpUrl } from "@/lib/share-utils";
 
 export function generateRsvpCode() {
   return Math.random().toString(36).substring(2, 7).toUpperCase();
