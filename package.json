@@ -6,9 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:login": "supabase login",
+    "db:link": "supabase link --project-ref uaquanlwxllvzlvmkezp",
+    "db:push": "supabase db push --yes",
+    "db:pull": "supabase db pull",
+    "db:new": "supabase migration new",
+    "db:status": "supabase migration list",
+    "db:reset": "supabase db reset"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.108.0",
     "canvas": "^3.2.3",
     "lucide-react": "^0.511.0",
     "next": "^15.5.19",
@@ -16,6 +24,7 @@
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "supabase": "^2.105.0",
     "@tailwindcss/postcss": "^4.3.0",
     "@types/node": "^22.19.20",
     "@types/react": "^19.2.17",

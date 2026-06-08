@@ -11,6 +11,7 @@ interface GuestListTabProps {
   errorMsg: string;
   onUploadLedger: (file: File) => Promise<void>;
   onUpdateEntry: (sectionIdx: number, entryIdx: number, fields: Partial<GuestEntry>) => void;
+  onUpdateSection: (sectionIdx: number, sectionName: string) => void;
   onAddEntry: (sectionIdx: number) => void;
   onAddSection: () => void;
   onRemoveSection: (sectionIdx: number) => void;
@@ -24,6 +25,7 @@ export function GuestListTab({
   errorMsg,
   onUploadLedger,
   onUpdateEntry,
+  onUpdateSection,
   onAddEntry,
   onAddSection,
   onRemoveSection,
@@ -90,28 +92,39 @@ export function GuestListTab({
 
           return (
             <section
-              key={section.sectionName}
+              key={`section-${sectionIdx}`}
               className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden"
             >
-              <div className="bg-slate-50 px-4 py-3 flex justify-between items-center border-b border-slate-100">
+              <div className="bg-slate-50 px-4 py-3 flex justify-between items-center gap-2 border-b border-slate-100">
                 <button
                   type="button"
                   onClick={() => toggleSection(sectionIdx)}
-                  className="flex items-center gap-3 text-left flex-1 min-w-0"
+                  className="p-1 text-slate-400 shrink-0"
+                  aria-label={isCollapsed ? "Expand section" : "Collapse section"}
                 >
                   <ChevronDown
-                    className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                    className={`w-4 h-4 transition-transform duration-200 ${
                       isCollapsed ? "-rotate-90" : ""
                     }`}
                   />
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-bold uppercase text-[#BF3B2B]">
-                      Section {sectionIdx + 1}
-                    </span>
-                    <h3 className="font-serif font-bold text-slate-900">{section.sectionName}</h3>
-                    <p className="text-[11px] text-slate-400">{section.entries.length} families</p>
-                  </div>
                 </button>
+                <div className="flex-1 min-w-0">
+                  <span className="text-[10px] font-bold uppercase text-[#BF3B2B]">
+                    Section {sectionIdx + 1}
+                  </span>
+                  <input
+                    type="text"
+                    value={section.sectionName}
+                    onChange={(e) => onUpdateSection(sectionIdx, e.target.value)}
+                    onBlur={(e) => {
+                      const name =
+                        capitalizeGuestName(e.target.value.trim()) || `Section ${sectionIdx + 1}`;
+                      onUpdateSection(sectionIdx, name);
+                    }}
+                    className="w-full font-serif font-bold text-slate-900 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-red-300 focus:outline-none py-0.5"
+                  />
+                  <p className="text-[11px] text-slate-400">{section.entries.length} families</p>
+                </div>
                 <button
                   type="button"
                   onClick={() => onRemoveSection(sectionIdx)}

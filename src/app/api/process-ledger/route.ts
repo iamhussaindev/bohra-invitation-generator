@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processLedgerImage } from "@/lib/openai-ledger";
-import { MOCK_LEDGER_DATA } from "@/lib/mock-data";
-import { capitalizeGuestSections } from "@/lib/name-utils";
 
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { image, useDemo } = body as { image?: string; useDemo?: boolean };
-
-    if (useDemo) {
-      return NextResponse.json({ sections: capitalizeGuestSections(MOCK_LEDGER_DATA) });
-    }
+    const { image } = body as { image?: string };
 
     if (!image || typeof image !== "string") {
       return NextResponse.json({ error: "Photo is required." }, { status: 400 });

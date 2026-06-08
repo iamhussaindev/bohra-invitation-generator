@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Check, Ticket, X } from "lucide-react";
+import { parseApiJson } from "@/lib/api-utils";
 
 function RsvpContent() {
   const searchParams = useSearchParams();
@@ -12,8 +13,37 @@ function RsvpContent() {
   const kids = Number(searchParams.get("k") || 0);
   const code = searchParams.get("code") || "DEMO";
   const [submitted, setSubmitted] = useState<"Accepted" | "Declined" | null>(null);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const totalInvitees = ladies + gents;
+
+  const handleSubmit = async (status: "Accepted" | "Declined") => {
+    setSubmitted(status);
+    setErrorMsg("");
+
+    try {
+      const response = await fetch("/api/rsvp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: `rsvp-${Date.now()}`,
+          name: guestName,
+          status,
+          ladies: status === "Accepted" ? ladies : 0,
+          gents: status === "Accepted" ? gents : 0,
+          kids: status === "Accepted" ? kids : 0,
+          code,
+        }),
+      });
+
+      const data = await parseApiJson<{ error?: string }>(response);
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to save RSVP.");
+      }
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : "Failed to save RSVP.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] flex flex-col">
@@ -37,18 +67,22 @@ function RsvpContent() {
           </div>
         </section>
 
+        {errorMsg && (
+          <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-sm">{errorMsg}</div>
+        )}
+
         {!submitted ? (
           <div className="grid grid-cols-1 gap-2">
             <button
               type="button"
-              onClick={() => setSubmitted("Accepted")}
+              onClick={() => void handleSubmit("Accepted")}
               className="bg-emerald-600 text-white font-semibold py-4 rounded-xl flex items-center justify-center gap-2"
             >
               <Check className="w-5 h-5" /> Accept Invitation
             </button>
             <button
               type="button"
-              onClick={() => setSubmitted("Declined")}
+              onClick={() => void handleSubmit("Declined")}
               className="bg-rose-600 text-white font-semibold py-4 rounded-xl flex items-center justify-center gap-2"
             >
               <X className="w-5 h-5" /> Decline
@@ -65,7 +99,7 @@ function RsvpContent() {
               {submitted}
             </p>
             <p className="mt-3 text-xs text-slate-500">
-              This demo RSVP page uses test.com. In production, responses would sync to your tracker.
+              Your RSVP has been saved. The host can see it in the RSVP tracker.
             </p>
           </section>
         )}

@@ -1,0 +1,7 @@
+-- Deprecated: use Supabase CLI migrations instead.
+-- Source of truth: supabase/migrations/
+--
+-- Push to remote:
+--   npm run db:login
+--   npm run db:link
+--   npm run db:push

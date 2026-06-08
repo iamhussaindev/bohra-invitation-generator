@@ -1,32 +1,83 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BottomNav } from "@/components/BottomNav";
 import { HomeTab } from "@/components/HomeTab";
 import { GuestListTab } from "@/components/GuestListTab";
 import { PassGeneratorTab } from "@/components/PassGeneratorTab";
 import { RsvpTrackerTab } from "@/components/RsvpTrackerTab";
 import { AppHeader } from "@/components/AppHeader";
-import { MOCK_LEDGER_DATA, MOCK_RSVP_DATA } from "@/lib/mock-data";
 import { parseApiJson } from "@/lib/api-utils";
 import { compressImageForUpload } from "@/lib/image-utils";
-import { capitalizeGuestSections } from "@/lib/name-utils";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { fetchGuestSections, saveGuestSections } from "@/lib/supabase/guests";
+import { clearRsvps, fetchRsvps } from "@/lib/supabase/rsvps";
 import type { AppTab, GuestEntry, GuestSection, OverlayCoords, RsvpRecord } from "@/lib/types";
 import { DEFAULT_TEMPLATE_URL } from "@/lib/invite-template";
 import { DEFAULT_COORDS } from "@/lib/types";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<AppTab>("home");
-  const [guestSections, setGuestSections] = useState<GuestSection[]>(
-    () => capitalizeGuestSections(MOCK_LEDGER_DATA)
-  );
-  const [selectedGuest, setSelectedGuest] = useState<GuestEntry>(MOCK_LEDGER_DATA[0].entries[0]);
+  const [guestSections, setGuestSections] = useState<GuestSection[]>([]);
+  const [selectedGuest, setSelectedGuest] = useState<GuestEntry | null>(null);
   const [uploadedTemplateImage, setUploadedTemplateImage] = useState<string | null>(null);
   const [isTemplateReady, setIsTemplateReady] = useState(false);
   const [coords, setCoords] = useState<OverlayCoords>(DEFAULT_COORDS);
-  const [rsvpList, setRsvpList] = useState<RsvpRecord[]>(MOCK_RSVP_DATA);
+  const [rsvpList, setRsvpList] = useState<RsvpRecord[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDbLoading, setIsDbLoading] = useState(isSupabaseConfigured());
+  const [isDbReady, setIsDbReady] = useState(!isSupabaseConfigured());
   const [errorMsg, setErrorMsg] = useState("");
+  const hasUserEditedGuests = useRef(false);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) {
+      setErrorMsg("Supabase is not configured. Add your project URL and publishable key to .env.local.");
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadData() {
+      try {
+        const [sections, rsvps] = await Promise.all([fetchGuestSections(), fetchRsvps()]);
+        if (cancelled) return;
+
+        setGuestSections(sections);
+        if (sections[0]?.entries[0]) {
+          setSelectedGuest(sections[0].entries[0]);
+        }
+        setRsvpList(rsvps);
+      } catch (error) {
+        if (!cancelled) {
+          setErrorMsg(error instanceof Error ? error.message : "Failed to load data from Supabase.");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsDbLoading(false);
+          setIsDbReady(true);
+        }
+      }
+    }
+
+    void loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isDbReady || !isSupabaseConfigured() || !hasUserEditedGuests.current) return;
+
+    const timeout = setTimeout(() => {
+      void saveGuestSections(guestSections).catch((error) => {
+        setErrorMsg(error instanceof Error ? error.message : "Failed to save guest list.");
+      });
+    }, 600);
+
+    return () => clearTimeout(timeout);
+  }, [guestSections, isDbReady]);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,17 +108,21 @@ export default function HomePage() {
     [guestSections]
   );
 
-  const handleLedgerUpload = async (file: File, useDemo = false) => {
+  const markGuestsEdited = () => {
+    hasUserEditedGuests.current = true;
+  };
+
+  const handleLedgerUpload = async (file: File) => {
     setIsProcessing(true);
     setErrorMsg("");
 
     try {
-      const image = useDemo ? "" : await compressImageForUpload(file);
+      const image = await compressImageForUpload(file);
 
       const response = await fetch("/api/process-ledger", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image, useDemo }),
+        body: JSON.stringify({ image }),
       });
 
       const data = await parseApiJson<{ sections?: GuestSection[]; error?: string }>(response);
@@ -79,9 +134,13 @@ export default function HomePage() {
         throw new Error("No guests were found in the photo.");
       }
 
+      markGuestsEdited();
       setGuestSections(data.sections);
       if (data.sections[0]?.entries[0]) {
         setSelectedGuest(data.sections[0].entries[0]);
+      }
+      if (isSupabaseConfigured()) {
+        await saveGuestSections(data.sections);
       }
       setActiveTab("guests");
     } catch (error) {
@@ -96,6 +155,7 @@ export default function HomePage() {
     entryIdx: number,
     updatedFields: Partial<GuestEntry>
   ) => {
+    markGuestsEdited();
     setGuestSections((prev) => {
       const updated = [...prev];
       const entry = updated[sectionIdx].entries[entryIdx];
@@ -109,7 +169,7 @@ export default function HomePage() {
       };
       updated[sectionIdx].entries[entryIdx] = nextEntry;
 
-      if (selectedGuest.id === nextEntry.id) {
+      if (selectedGuest?.id === nextEntry.id) {
         setSelectedGuest(nextEntry);
       }
 
@@ -118,6 +178,7 @@ export default function HomePage() {
   };
 
   const handleAddEntry = (sectionIdx: number) => {
+    markGuestsEdited();
     setGuestSections((prev) => {
       const updated = [...prev];
       updated[sectionIdx].entries.push({
@@ -134,38 +195,101 @@ export default function HomePage() {
     });
   };
 
+  const handleUpdateSection = (sectionIdx: number, sectionName: string) => {
+    markGuestsEdited();
+    setGuestSections((prev) => {
+      const updated = [...prev];
+      updated[sectionIdx] = { ...updated[sectionIdx], sectionName };
+      return updated;
+    });
+  };
+
   const handleAddSection = () => {
     const name = prompt("Enter section name:");
     if (!name) return;
+    markGuestsEdited();
     setGuestSections((prev) => [...prev, { sectionName: name, entries: [] }]);
   };
 
   const handleRemoveSection = (sectionIdx: number) => {
     if (!confirm("Delete this entire section?")) return;
-    setGuestSections((prev) => prev.filter((_, idx) => idx !== sectionIdx));
-  };
-
-  const handleRemoveEntry = (sectionIdx: number, entryIdx: number) => {
+    markGuestsEdited();
     setGuestSections((prev) => {
-      const updated = [...prev];
-      updated[sectionIdx].entries.splice(entryIdx, 1);
+      const updated = prev.filter((_, idx) => idx !== sectionIdx);
+      const stillSelected = updated.some((section) =>
+        section.entries.some((entry) => entry.id === selectedGuest?.id)
+      );
+      if (!stillSelected) {
+        setSelectedGuest(updated[0]?.entries[0] ?? null);
+      }
       return updated;
     });
   };
 
-  const simulateGuestRSVP = (status: "Accepted" | "Declined") => {
-    setRsvpList((prev) => [
-      {
-        id: String(Date.now()),
-        name: selectedGuest.cleanedNames,
-        status,
-        ladies: status === "Accepted" ? selectedGuest.ladiesCount : 0,
-        gents: status === "Accepted" ? selectedGuest.gentsCount : 0,
-        kids: status === "Accepted" ? selectedGuest.kidsCount : 0,
-        timestamp: "Just now",
-      },
-      ...prev,
-    ]);
+  const handleRemoveEntry = (sectionIdx: number, entryIdx: number) => {
+    markGuestsEdited();
+    setGuestSections((prev) => {
+      const updated = [...prev];
+      const removedId = updated[sectionIdx].entries[entryIdx]?.id;
+      updated[sectionIdx].entries.splice(entryIdx, 1);
+      if (removedId === selectedGuest?.id) {
+        const nextGuest =
+          updated.flatMap((section) => section.entries)[0] ?? null;
+        setSelectedGuest(nextGuest);
+      }
+      return updated;
+    });
+  };
+
+  const simulateGuestRSVP = async (status: "Accepted" | "Declined") => {
+    if (!selectedGuest) return;
+
+    const record = {
+      id: `rsvp-${Date.now()}`,
+      name: selectedGuest.cleanedNames,
+      status,
+      ladies: status === "Accepted" ? selectedGuest.ladiesCount : 0,
+      gents: status === "Accepted" ? selectedGuest.gentsCount : 0,
+      kids: status === "Accepted" ? selectedGuest.kidsCount : 0,
+      timestamp: "Just now",
+    };
+
+    setRsvpList((prev) => [record, ...prev]);
+
+    if (!isSupabaseConfigured()) return;
+
+    try {
+      const response = await fetch("/api/rsvp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: record.id,
+          name: record.name,
+          status: record.status,
+          ladies: record.ladies,
+          gents: record.gents,
+          kids: record.kids,
+          guestEntryId: selectedGuest.id,
+        }),
+      });
+      const data = await parseApiJson<{ record?: RsvpRecord; error?: string }>(response);
+      if (!response.ok) throw new Error(data.error || "Failed to save RSVP.");
+      if (data.record) {
+        setRsvpList((prev) => [data.record!, ...prev.filter((item) => item.id !== record.id)]);
+      }
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : "Failed to save RSVP.");
+    }
+  };
+
+  const handleClearRsvps = async () => {
+    setRsvpList([]);
+    if (!isSupabaseConfigured()) return;
+    try {
+      await clearRsvps();
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : "Failed to clear RSVPs.");
+    }
   };
 
   return (
@@ -200,6 +324,7 @@ export default function HomePage() {
             errorMsg={errorMsg}
             onUploadLedger={handleLedgerUpload}
             onUpdateEntry={handleUpdateEntry}
+            onUpdateSection={handleUpdateSection}
             onAddEntry={handleAddEntry}
             onAddSection={handleAddSection}
             onRemoveSection={handleRemoveSection}
@@ -225,7 +350,13 @@ export default function HomePage() {
         )}
 
         {activeTab === "rsvp" && (
-          <RsvpTrackerTab rsvpList={rsvpList} onClear={() => setRsvpList([])} />
+          <RsvpTrackerTab rsvpList={rsvpList} onClear={handleClearRsvps} />
+        )}
+
+        {isDbLoading && (
+          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-3 py-2 rounded-full shadow-lg">
+            Loading from Supabase...
+          </div>
         )}
       </main>
 

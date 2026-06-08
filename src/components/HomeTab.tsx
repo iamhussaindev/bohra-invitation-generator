@@ -9,7 +9,7 @@ interface HomeTabProps {
   hasCustomTemplate: boolean;
   isProcessing: boolean;
   errorMsg: string;
-  onUploadLedger: (file: File, useDemo?: boolean) => Promise<void>;
+  onUploadLedger: (file: File) => Promise<void>;
   onTemplateUpload: (file: File) => Promise<void>;
   onResetTemplate: () => void;
   onGoToGuests: () => void;

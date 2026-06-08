@@ -14,7 +14,7 @@ import { capitalizeGuestName } from "@/lib/name-utils";
 
 interface PassGeneratorTabProps {
   guestSections: GuestSection[];
-  selectedGuest: GuestEntry;
+  selectedGuest: GuestEntry | null;
   coords: OverlayCoords;
   uploadedTemplateImage: string | null;
   onSelectGuest: (guest: GuestEntry) => void;
@@ -87,6 +87,7 @@ export function PassGeneratorTab({
   );
 
   const handleDownload = async () => {
+    if (!selectedGuest) return;
     setIsGenerating(true);
     setErrorMsg("");
     try {
@@ -103,6 +104,7 @@ export function PassGeneratorTab({
   };
 
   const handleShare = async () => {
+    if (!selectedGuest) return;
     setIsGenerating(true);
     setErrorMsg("");
     try {
@@ -156,6 +158,7 @@ export function PassGeneratorTab({
   };
 
   const updateGuestName = (name: string) => {
+    if (!selectedGuest) return;
     guestSections.forEach((section, sIdx) => {
       const eIdx = section.entries.findIndex((entry) => entry.id === selectedGuest.id);
       if (eIdx !== -1) {
@@ -163,6 +166,17 @@ export function PassGeneratorTab({
       }
     });
   };
+
+  if (!selectedGuest || allGuests.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center shadow-sm">
+        <h2 className="text-xl font-serif font-bold text-slate-900">Boarding Pass Designer</h2>
+        <p className="mt-2 text-sm text-slate-500">
+          Upload a ledger photo or add guests first, then come back to generate passes.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
