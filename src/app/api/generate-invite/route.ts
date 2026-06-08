@@ -8,6 +8,9 @@ import {
   drawGuestOverlay,
   generateFallbackTemplate,
 } from "@/lib/canvas-utils";
+import { registerServerCanvasFonts } from "@/lib/server-canvas-fonts";
+
+registerServerCanvasFonts();
 
 function loadDefaultTemplate() {
   const templatePath = join(process.cwd(), "public", "invitation-template.jpg");

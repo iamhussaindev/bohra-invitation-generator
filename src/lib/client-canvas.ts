@@ -1,4 +1,5 @@
 import type { GuestEntry, OverlayCoords } from "@/lib/types";
+import { buildCountFont, buildNameFont } from "@/lib/canvas-fonts";
 
 export function drawGuestOverlay(
   ctx: CanvasRenderingContext2D,
@@ -8,13 +9,13 @@ export function drawGuestOverlay(
   const adultCount = guest.ladiesCount + guest.gentsCount;
 
   ctx.fillStyle = "#C2362B";
-  ctx.font = `italic bold ${coords.fontSize}px ${coords.fontFamily}`;
+  ctx.font = buildNameFont(coords.fontSize);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(guest.cleanedNames, coords.nameX, coords.nameY);
 
   ctx.fillStyle = "#BF3B2B";
-  ctx.font = `bold ${coords.countFontSize}px Courier New, monospace`;
+  ctx.font = buildCountFont(coords.countFontSize);
   ctx.textAlign = "center";
   ctx.fillText(String(adultCount), coords.inviteesX, coords.inviteesY);
   ctx.fillText(String(guest.kidsCount), coords.kidsX, coords.kidsY);

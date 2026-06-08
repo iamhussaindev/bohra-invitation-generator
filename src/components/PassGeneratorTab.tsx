@@ -12,6 +12,7 @@ import {
 } from "@/lib/client-canvas";
 import { downloadInviteImage } from "@/lib/invite-image";
 import { getRsvpPageUrl, shareInviteWithImage } from "@/lib/share-utils";
+import { ensureInviteFontsLoaded } from "@/lib/canvas-fonts";
 import { formatGuestName } from "@/lib/name-utils";
 
 interface PassGeneratorTabProps {
@@ -51,32 +52,47 @@ export function PassGeneratorTab({
     }
 
     setIsCanvasReady(false);
+    let cancelled = false;
 
-    if (uploadedTemplateImage) {
-      const img = new Image();
-      img.src = uploadedTemplateImage;
-      img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
+    async function renderPreview() {
+      await ensureInviteFontsLoaded();
+      if (cancelled || !canvasRef.current || !selectedGuest) return;
+
+      const canvas = canvasRef.current;
+
+      if (uploadedTemplateImage) {
+        const img = new Image();
+        img.src = uploadedTemplateImage;
+        img.onload = () => {
+          if (cancelled) return;
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return;
+          ctx.drawImage(img, 0, 0);
+          drawGuestOverlay(ctx, selectedGuest, coords);
+          setIsCanvasReady(true);
+        };
+        img.onerror = () => setErrorMsg("Could not load invitation template.");
+      } else {
+        canvas.width = 800;
+        canvas.height = 1000;
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
-        ctx.drawImage(img, 0, 0);
-        drawGuestOverlay(ctx, selectedGuest, coords);
+        generateFallbackTemplate(ctx, 800, 1000, selectedGuest.cleanedNames, {
+          ladies: selectedGuest.ladiesCount,
+          gents: selectedGuest.gentsCount,
+          kids: selectedGuest.kidsCount,
+        });
         setIsCanvasReady(true);
-      };
-      img.onerror = () => setErrorMsg("Could not load invitation template.");
-    } else {
-      canvas.width = 800;
-      canvas.height = 1000;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      generateFallbackTemplate(ctx, 800, 1000, selectedGuest.cleanedNames, {
-        ladies: selectedGuest.ladiesCount,
-        gents: selectedGuest.gentsCount,
-        kids: selectedGuest.kidsCount,
-      });
-      setIsCanvasReady(true);
+      }
     }
+
+    void renderPreview();
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedGuest, uploadedTemplateImage, coords]);
 
   const generateServerImage = useCallback(async (guest: GuestEntry) => {
