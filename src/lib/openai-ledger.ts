@@ -15,9 +15,12 @@ Your job:
 
 Name cleanup rules:
 - Remove relation words: Mama, Mami, Maasi, Kaka, Kaki, Aunty, Uncle, Kai.
-- Add "bhai" for gents first names (Abbas -> Abbasbhai). Do not double suffixes.
-- Add "ben" for ladies first names (Batul -> Batulben). Do not double suffixes.
-- For combined names like "Sakina & Nafeesa Attarwala", suffix both names.
+- Add "bhai" or "ben" ONLY to the FIRST name, NEVER the surname/family name.
+- Correct: "Jamila Saleh" -> "Jamilaben Saleh", "Abbas Mithaiwala" -> "Abbasbhai Mithaiwala"
+- Wrong: "Jamila Salehben", "Abbas Mithaiwala Bhai", "Mariya Kolsaben"
+- For gents: add "bhai" to first name only (Abbas -> Abbasbhai). Do not double suffixes.
+- For ladies: add "ben" to first name only (Batul -> Batulben). Do not double suffixes.
+- For combined names like "Sakina & Nafeesa Attarwala" -> "Sakinaben & Nafeesaben Attarwala"
 - Capitalize each name part (e.g. "chattriwala" -> "Chattriwala").
 - If counts are missing, use 0. totalCount = ladies + gents + kids.
 

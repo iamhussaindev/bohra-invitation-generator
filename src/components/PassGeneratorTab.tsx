@@ -10,7 +10,7 @@ import {
   generateFallbackTemplate,
   generateRsvpCode,
 } from "@/lib/client-canvas";
-import { capitalizeGuestName } from "@/lib/name-utils";
+import { formatGuestName } from "@/lib/name-utils";
 
 interface PassGeneratorTabProps {
   guestSections: GuestSection[];
@@ -219,7 +219,16 @@ export function PassGeneratorTab({
           type="text"
           value={selectedGuest.cleanedNames}
           onChange={(e) => updateGuestName(e.target.value)}
-          onBlur={(e) => updateGuestName(capitalizeGuestName(e.target.value))}
+          onBlur={(e) =>
+            updateGuestName(
+              formatGuestName(
+                e.target.value,
+                selectedGuest.gender,
+                selectedGuest.ladiesCount,
+                selectedGuest.gentsCount
+              )
+            )
+          }
           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm font-bold"
         />
 

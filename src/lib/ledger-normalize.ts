@@ -1,4 +1,4 @@
-import { capitalizeGuestName } from "@/lib/name-utils";
+import { capitalizeGuestName, formatGuestName } from "@/lib/name-utils";
 import type { GuestEntry, GuestGender, GuestSection } from "@/lib/types";
 
 function toNumber(value: unknown, fallback = 0): number {
@@ -18,22 +18,22 @@ function normalizeEntry(raw: unknown, index: number, sectionIdx: number): GuestE
   const originalText = String(
     entry.originalText ?? entry.name ?? entry.rawName ?? entry.text ?? ""
   ).trim();
-  const cleanedNames = capitalizeGuestName(
-    String(entry.cleanedNames ?? entry.name ?? entry.cleanedName ?? originalText).trim()
-  );
-
-  if (!cleanedNames) return null;
-
   const ladiesCount = toNumber(entry.ladiesCount ?? entry.ladies);
   const gentsCount = toNumber(entry.gentsCount ?? entry.gents);
   const kidsCount = toNumber(entry.kidsCount ?? entry.kids ?? entry.reds);
   const totalCount = toNumber(entry.totalCount ?? entry.total, ladiesCount + gentsCount + kidsCount);
+  const gender = toGender(entry.gender);
+
+  const rawName = String(entry.cleanedNames ?? entry.name ?? entry.cleanedName ?? originalText).trim();
+  const cleanedNames = formatGuestName(rawName, gender, ladiesCount, gentsCount);
+
+  if (!cleanedNames) return null;
 
   return {
     id: String(entry.id ?? `ledger-${sectionIdx}-${index}-${Date.now()}`),
     originalText: originalText || cleanedNames,
     cleanedNames,
-    gender: toGender(entry.gender),
+    gender,
     ladiesCount,
     gentsCount,
     kidsCount,

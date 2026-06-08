@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { formatGuestName } from "@/lib/name-utils";
 import type { GuestEntry, GuestGender, GuestSection } from "@/lib/types";
 
 type GuestSectionRow = {
@@ -21,10 +22,16 @@ type GuestEntryRow = {
 };
 
 function toEntry(row: GuestEntryRow): GuestEntry {
+  const gender = row.gender;
   return {
     id: row.id,
     originalText: row.original_text,
-    cleanedNames: row.cleaned_names,
+    cleanedNames: formatGuestName(
+      row.cleaned_names,
+      gender,
+      row.ladies_count,
+      row.gents_count
+    ),
     gender: row.gender,
     ladiesCount: row.ladies_count,
     gentsCount: row.gents_count,

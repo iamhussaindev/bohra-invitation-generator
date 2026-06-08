@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown, Plus, RefreshCw, Ticket, Trash2, Upload } from "lucide-react";
-import { capitalizeGuestName } from "@/lib/name-utils";
+import { capitalizeGuestName, formatGuestName } from "@/lib/name-utils";
 import type { GuestEntry, GuestSection } from "@/lib/types";
 
 interface GuestListTabProps {
@@ -153,7 +153,12 @@ export function GuestListTab({
                             }
                             onBlur={(e) =>
                               onUpdateEntry(sectionIdx, entryIdx, {
-                                cleanedNames: capitalizeGuestName(e.target.value),
+                                cleanedNames: formatGuestName(
+                                  e.target.value,
+                                  entry.gender,
+                                  entry.ladiesCount,
+                                  entry.gentsCount
+                                ),
                               })
                             }
                             className="w-full font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
