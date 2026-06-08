@@ -1,43 +1,41 @@
+import { normalizeLedgerSections } from "@/lib/ledger-normalize";
+import type { GuestSection } from "@/lib/types";
+
 const LEDGER_SYSTEM_PROMPT = `
-You are an expert handwriting transcriber for Dawoodi Bohra community guest ledgers.
-Analyze the ledger list image. Transcribe each section, its entries, and counts.
+You transcribe Dawoodi Bohra handwritten guest ledger photos into structured guest data.
 
-Columns in ledger:
-- S.No / Number (1, 2, 3...)
-- Name
-- Ladies count
-- Gents count
-- Reds/Kids count (usually labeled 'Reds' or placed between Gents & Total)
-- Total count
+Your job:
+1. Read all visible text from the image (OCR).
+2. Group rows into sections when section headers appear (e.g. "NO:- Shekha Mujal").
+3. If no sections are visible, put everyone in one section called "Guests".
+4. For each family row, extract:
+   - originalText: raw handwritten name line
+   - cleanedNames: cleaned invite name
+   - ladiesCount, gentsCount, kidsCount, totalCount
 
-Sections start with "NO:- [Section Name]" (e.g., "Shekha Mujal", "Bhaiwada ni Pole", "Makeriwad", "Zakariya").
+Name cleanup rules:
+- Remove relation words: Mama, Mami, Maasi, Kaka, Kaki, Aunty, Uncle, Kai.
+- Add "bhai" for gents first names (Abbas -> Abbasbhai). Do not double suffixes.
+- Add "ben" for ladies first names (Batul -> Batulben). Do not double suffixes.
+- For combined names like "Sakina & Nafeesa Attarwala", suffix both names.
+- Capitalize each name part (e.g. "chattriwala" -> "Chattriwala").
+- If counts are missing, use 0. totalCount = ladies + gents + kids.
 
-CRITICAL Processing Rules for Name Extraction, Cleanup & Formatting:
-1. Extract the names correctly.
-2. Clean up names by removing family relationship words like: Mama, Mami, Maasi, Kaka, Kaki, Aunty, Uncle, Kai.
-   E.g., "Salma Mami Kathawala" -> "Salma Kathawala", "Jubeda Maasi" -> "Jubeda", "Ajabaunty goodluck" -> "Ajab Goodluck".
-3. Standardize Dawoodi Bohra honorific suffixes:
-   - For Gents: Add "bhai" to the first name (e.g. "Abbas" -> "Abbasbhai"). Do not double it if "bhai" is already present.
-   - For Ladies: Add "ben" to the first name (e.g. "Batul" -> "Batulben"). Do not double it if "ben" is already present.
-   - For combined entries with multiple people (e.g., "Sakina & Nafeesa Attarwala"), apply the suffix to both.
-4. Capitalize all name parts: first letter uppercase, rest lowercase (e.g. "chattriwala" -> "Chattriwala", "Batulben Chattriwala", "Abbasbhai Mithaiwala").
-5. Ensure counts (ladies, gents, kids) match columns. If kids column is empty, count as 0. Total must be numeric.
-
-Return ONLY valid JSON with this schema:
+Return ONLY valid JSON:
 {
   "sections": [
     {
-      "sectionName": "Name of section",
+      "sectionName": "Section name",
       "entries": [
         {
-          "id": "unique-string-id",
-          "originalText": "raw handwritten string",
-          "cleanedNames": "formatted names with Ben/Bhai",
+          "id": "unique-id",
+          "originalText": "raw text",
+          "cleanedNames": "Cleaned Name",
           "gender": "ladies" | "gents" | "mixed",
-          "ladiesCount": number,
-          "gentsCount": number,
-          "kidsCount": number,
-          "totalCount": number
+          "ladiesCount": 0,
+          "gentsCount": 0,
+          "kidsCount": 0,
+          "totalCount": 0
         }
       ]
     }
@@ -45,10 +43,33 @@ Return ONLY valid JSON with this schema:
 }
 `;
 
-export async function processLedgerImage(base64Image: string) {
+function parseJsonFromAi(content: string): unknown {
+  try {
+    return JSON.parse(content);
+  } catch {
+    const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fenced?.[1]) {
+      return JSON.parse(fenced[1].trim());
+    }
+
+    const start = content.indexOf("{");
+    const end = content.lastIndexOf("}");
+    if (start !== -1 && end > start) {
+      return JSON.parse(content.slice(start, end + 1));
+    }
+
+    throw new Error("AI could not parse the ledger text. Try a clearer photo.");
+  }
+}
+
+export async function processLedgerImage(base64Image: string): Promise<GuestSection[]> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error("OPENAI_API_KEY is not configured on the server.");
+  }
+
+  if (!base64Image.startsWith("data:image/")) {
+    throw new Error("Invalid image format. Please upload a photo.");
   }
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -67,11 +88,11 @@ export async function processLedgerImage(base64Image: string) {
           content: [
             {
               type: "text",
-              text: "Extract, clean, and format the handwritten ledger into JSON matching the instructions.",
+              text: "Read this ledger photo, extract all guest names and counts, clean the names, and return JSON only.",
             },
             {
               type: "image_url",
-              image_url: { url: base64Image },
+              image_url: { url: base64Image, detail: "high" },
             },
           ],
         },
@@ -80,21 +101,23 @@ export async function processLedgerImage(base64Image: string) {
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenAI request failed: ${response.status} ${errorText}`);
+    let message = `OpenAI request failed (${response.status}).`;
+    try {
+      const errorBody = await response.json();
+      message = errorBody?.error?.message || message;
+    } catch {
+      // ignore non-json error body
+    }
+    throw new Error(message);
   }
 
   const data = await response.json();
   const jsonText = data.choices?.[0]?.message?.content;
 
-  if (!jsonText) {
-    throw new Error("No content returned from OpenAI.");
+  if (!jsonText || typeof jsonText !== "string") {
+    throw new Error("AI did not return any ledger text.");
   }
 
-  const parsed = JSON.parse(jsonText);
-  if (!parsed.sections || !Array.isArray(parsed.sections)) {
-    throw new Error("Invalid format from OpenAI.");
-  }
-
-  return parsed.sections;
+  const parsed = parseJsonFromAi(jsonText);
+  return normalizeLedgerSections(parsed);
 }

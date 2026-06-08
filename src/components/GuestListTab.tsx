@@ -58,12 +58,15 @@ export function GuestListTab({
             <Upload className="w-3.5 h-3.5" /> Re-scan
             <input
               type="file"
-              accept="image/*"
-              capture="environment"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) onUploadLedger(file);
+                if (file) {
+                  void onUploadLedger(file).finally(() => {
+                    e.target.value = "";
+                  });
+                }
               }}
             />
           </label>

@@ -8,6 +8,7 @@ interface HomeTabProps {
   acceptedRsvps: number;
   hasCustomTemplate: boolean;
   isProcessing: boolean;
+  errorMsg: string;
   onUploadLedger: (file: File, useDemo?: boolean) => Promise<void>;
   onTemplateUpload: (file: File) => Promise<void>;
   onResetTemplate: () => void;
@@ -20,6 +21,7 @@ export function HomeTab({
   acceptedRsvps,
   hasCustomTemplate,
   isProcessing,
+  errorMsg,
   onUploadLedger,
   onTemplateUpload,
   onResetTemplate,
@@ -35,7 +37,7 @@ export function HomeTab({
           Upload your guest ledger
         </h2>
         <p className="mt-2 text-sm text-slate-600">
-          Capture or upload a photo of your handwritten list. OpenAI will detect sections, names, and Ladies / Gents / Kids counts.
+          Take a photo of your handwritten list. AI will read the text, clean names, and build your guest list.
         </p>
 
         <div className="mt-4 grid grid-cols-1 gap-2">
@@ -44,13 +46,16 @@ export function HomeTab({
             <span>Capture Ledger Photo</span>
             <input
               type="file"
-              accept="image/*"
-              capture="environment"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
               className="hidden"
               disabled={isProcessing}
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) onUploadLedger(file);
+                if (file) {
+                  void onUploadLedger(file).finally(() => {
+                    e.target.value = "";
+                  });
+                }
               }}
             />
           </label>
@@ -60,12 +65,16 @@ export function HomeTab({
             <span>Upload from Gallery</span>
             <input
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
               className="hidden"
               disabled={isProcessing}
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) onUploadLedger(file);
+                if (file) {
+                  void onUploadLedger(file).finally(() => {
+                    e.target.value = "";
+                  });
+                }
               }}
             />
           </label>
@@ -81,11 +90,15 @@ export function HomeTab({
         </div>
       </section>
 
+      {errorMsg && (
+        <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-sm">{errorMsg}</div>
+      )}
+
       {isProcessing && (
         <div className="bg-white border border-slate-100 rounded-2xl p-8 text-center shadow-sm">
           <RefreshCw className="w-8 h-8 text-[#BF3B2B] animate-spin mx-auto" />
-          <p className="mt-3 text-sm font-semibold text-slate-800">Analyzing handwritten ledger...</p>
-          <p className="mt-1 text-xs text-slate-500">Cleaning names, adding Ben/Bhai, detecting counts</p>
+          <p className="mt-3 text-sm font-semibold text-slate-800">Reading ledger with AI...</p>
+          <p className="mt-1 text-xs text-slate-500">Extracting names and building your guest list</p>
         </div>
       )}
 

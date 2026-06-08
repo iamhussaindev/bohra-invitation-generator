@@ -8,6 +8,8 @@ import { PassGeneratorTab } from "@/components/PassGeneratorTab";
 import { RsvpTrackerTab } from "@/components/RsvpTrackerTab";
 import { AppHeader } from "@/components/AppHeader";
 import { MOCK_LEDGER_DATA, MOCK_RSVP_DATA } from "@/lib/mock-data";
+import { parseApiJson } from "@/lib/api-utils";
+import { compressImageForUpload } from "@/lib/image-utils";
 import { capitalizeGuestSections } from "@/lib/name-utils";
 import type { AppTab, GuestEntry, GuestSection, OverlayCoords, RsvpRecord } from "@/lib/types";
 import { DEFAULT_TEMPLATE_URL } from "@/lib/invite-template";
@@ -60,25 +62,30 @@ export default function HomePage() {
     setErrorMsg("");
 
     try {
-      const base64 = await fileToBase64(file);
+      const image = useDemo ? "" : await compressImageForUpload(file);
 
       const response = await fetch("/api/process-ledger", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: base64, useDemo }),
+        body: JSON.stringify({ image, useDemo }),
       });
 
-      const data = await response.json();
+      const data = await parseApiJson<{ sections?: GuestSection[]; error?: string }>(response);
       if (!response.ok) {
-        throw new Error(data.error || "Failed to process ledger.");
+        throw new Error(data.error || "Failed to process ledger photo.");
+      }
+
+      if (!data.sections?.length) {
+        throw new Error("No guests were found in the photo.");
       }
 
       setGuestSections(data.sections);
       if (data.sections[0]?.entries[0]) {
         setSelectedGuest(data.sections[0].entries[0]);
       }
+      setActiveTab("guests");
     } catch (error) {
-      setErrorMsg(error instanceof Error ? error.message : "Failed to process ledger.");
+      setErrorMsg(error instanceof Error ? error.message : "Failed to process ledger photo.");
     } finally {
       setIsProcessing(false);
     }
@@ -173,6 +180,7 @@ export default function HomePage() {
             acceptedRsvps={rsvpList.filter((r) => r.status === "Accepted").length}
             hasCustomTemplate={Boolean(uploadedTemplateImage && isTemplateReady)}
             isProcessing={isProcessing}
+            errorMsg={errorMsg}
             onUploadLedger={handleLedgerUpload}
             onTemplateUpload={async (file) => setUploadedTemplateImage(await fileToBase64(file))}
             onResetTemplate={async () => {
