@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Download, RefreshCw, Share2, Trash2 } from "lucide-react";
+import { Download, RefreshCw, Share2 } from "lucide-react";
 import { parseApiJson } from "@/lib/api-utils";
 import type { GuestEntry, GuestSection, OverlayCoords } from "@/lib/types";
 import { DEFAULT_COORDS } from "@/lib/types";
@@ -22,7 +22,7 @@ interface PassGeneratorTabProps {
   onSelectGuest: (guest: GuestEntry) => void;
   onUpdateEntry: (sectionIdx: number, entryIdx: number, fields: Partial<GuestEntry>) => void;
   onCoordsChange: (coords: OverlayCoords) => void;
-  onSimulateRsvp: (status: "Accepted" | "Declined") => void;
+  onInviteSent: (guestId: string) => void;
 }
 
 export function PassGeneratorTab({
@@ -33,7 +33,7 @@ export function PassGeneratorTab({
   onSelectGuest,
   onUpdateEntry,
   onCoordsChange,
-  onSimulateRsvp,
+  onInviteSent,
 }: PassGeneratorTabProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [shareStatus, setShareStatus] = useState("");
@@ -103,10 +103,11 @@ export function PassGeneratorTab({
     setErrorMsg("");
     try {
       const image = await getInviteImage();
-      await downloadInviteImage(
+      const sent = await downloadInviteImage(
         image,
         `boarding-pass-${selectedGuest.cleanedNames.replace(/\s+/g, "_")}.png`
       );
+      if (sent) onInviteSent(selectedGuest.id);
     } catch (error) {
       setErrorMsg(error instanceof Error ? error.message : "Download failed.");
     } finally {
@@ -130,6 +131,8 @@ export function PassGeneratorTab({
         kids: selectedGuest.kidsCount,
         rsvpUrl,
       });
+
+      onInviteSent(selectedGuest.id);
 
       if (result === "shared") {
         setShareStatus("Shared boarding pass image with RSVP link.");
@@ -156,7 +159,11 @@ export function PassGeneratorTab({
         const guest = allGuests[i];
         setBulkProgress(`${i + 1} / ${allGuests.length}: ${guest.cleanedNames}`);
         const image = await generateServerImage(guest);
-        await downloadInviteImage(image, `boarding-pass-${guest.cleanedNames.replace(/\s+/g, "_")}.png`);
+        const sent = await downloadInviteImage(
+          image,
+          `boarding-pass-${guest.cleanedNames.replace(/\s+/g, "_")}.png`
+        );
+        if (sent) onInviteSent(guest.id);
         await new Promise((resolve) => setTimeout(resolve, 400));
       }
       setBulkProgress(`Downloaded ${allGuests.length} invites`);
@@ -318,26 +325,6 @@ export function PassGeneratorTab({
           <SliderField label="Count Font Size" value={coords.countFontSize} min={18} max={90} onChange={(v) => onCoordsChange({ ...coords, countFontSize: v })} />
         </div>
       </details>
-
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
-        <p className="text-xs font-bold text-slate-500 uppercase">RSVP Simulator</p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => onSimulateRsvp("Accepted")}
-            className="flex-1 bg-emerald-600 text-white text-xs font-semibold py-2.5 rounded-lg flex items-center justify-center gap-1"
-          >
-            <Check className="w-3.5 h-3.5" /> Accept
-          </button>
-          <button
-            type="button"
-            onClick={() => onSimulateRsvp("Declined")}
-            className="flex-1 bg-rose-600 text-white text-xs font-semibold py-2.5 rounded-lg flex items-center justify-center gap-1"
-          >
-            <Trash2 className="w-3.5 h-3.5" /> Decline
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

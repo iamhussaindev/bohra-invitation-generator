@@ -10,7 +10,8 @@ import { AppHeader } from "@/components/AppHeader";
 import { parseApiJson } from "@/lib/api-utils";
 import { compressImageForUpload } from "@/lib/image-utils";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
-import { fetchGuestSections, saveGuestSections } from "@/lib/supabase/guests";
+import { computeGuestReport } from "@/lib/guest-stats";
+import { fetchGuestSections, markInviteSent, saveGuestSections } from "@/lib/supabase/guests";
 import { clearRsvps, fetchRsvps } from "@/lib/supabase/rsvps";
 import type { AppTab, GuestEntry, GuestSection, OverlayCoords, RsvpRecord } from "@/lib/types";
 import { DEFAULT_TEMPLATE_URL } from "@/lib/invite-template";
@@ -103,10 +104,7 @@ export default function HomePage() {
     };
   }, []);
 
-  const totalFamilies = useMemo(
-    () => guestSections.reduce((acc, section) => acc + section.entries.length, 0),
-    [guestSections]
-  );
+  const guestReport = useMemo(() => computeGuestReport(guestSections), [guestSections]);
 
   const markGuestsEdited = () => {
     hasUserEditedGuests.current = true;
@@ -241,45 +239,27 @@ export default function HomePage() {
     });
   };
 
-  const simulateGuestRSVP = async (status: "Accepted" | "Declined") => {
-    if (!selectedGuest) return;
+  const handleInviteSent = (guestId: string) => {
+    const sentAt = new Date().toISOString();
 
-    const record = {
-      id: `rsvp-${Date.now()}`,
-      name: selectedGuest.cleanedNames,
-      status,
-      ladies: status === "Accepted" ? selectedGuest.ladiesCount : 0,
-      gents: status === "Accepted" ? selectedGuest.gentsCount : 0,
-      kids: status === "Accepted" ? selectedGuest.kidsCount : 0,
-      timestamp: "Just now",
-    };
+    setGuestSections((prev) =>
+      prev.map((section) => ({
+        ...section,
+        entries: section.entries.map((entry) =>
+          entry.id === guestId && !entry.inviteSentAt ? { ...entry, inviteSentAt: sentAt } : entry
+        ),
+      }))
+    );
 
-    setRsvpList((prev) => [record, ...prev]);
+    if (selectedGuest?.id === guestId && !selectedGuest.inviteSentAt) {
+      setSelectedGuest({ ...selectedGuest, inviteSentAt: sentAt });
+    }
 
     if (!isSupabaseConfigured()) return;
 
-    try {
-      const response = await fetch("/api/rsvp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: record.id,
-          name: record.name,
-          status: record.status,
-          ladies: record.ladies,
-          gents: record.gents,
-          kids: record.kids,
-          guestEntryId: selectedGuest.id,
-        }),
-      });
-      const data = await parseApiJson<{ record?: RsvpRecord; error?: string }>(response);
-      if (!response.ok) throw new Error(data.error || "Failed to save RSVP.");
-      if (data.record) {
-        setRsvpList((prev) => [data.record!, ...prev.filter((item) => item.id !== record.id)]);
-      }
-    } catch (error) {
-      setErrorMsg(error instanceof Error ? error.message : "Failed to save RSVP.");
-    }
+    void markInviteSent(guestId, sentAt).catch((error) => {
+      setErrorMsg(error instanceof Error ? error.message : "Failed to record invite sent.");
+    });
   };
 
   const handleClearRsvps = async () => {
@@ -299,9 +279,8 @@ export default function HomePage() {
       <main className="flex-1 w-full max-w-3xl mx-auto px-4 pt-4 pb-28">
         {activeTab === "home" && (
           <HomeTab
-            totalFamilies={totalFamilies}
+            guestReport={guestReport}
             totalSections={guestSections.length}
-            acceptedRsvps={rsvpList.filter((r) => r.status === "Accepted").length}
             hasCustomTemplate={Boolean(uploadedTemplateImage && isTemplateReady)}
             isProcessing={isProcessing}
             errorMsg={errorMsg}
@@ -345,7 +324,7 @@ export default function HomePage() {
             onSelectGuest={setSelectedGuest}
             onUpdateEntry={handleUpdateEntry}
             onCoordsChange={setCoords}
-            onSimulateRsvp={simulateGuestRSVP}
+            onInviteSent={handleInviteSent}
           />
         )}
 

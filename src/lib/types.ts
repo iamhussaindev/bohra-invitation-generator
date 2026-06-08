@@ -9,6 +9,7 @@ export interface GuestEntry {
   gentsCount: number;
   kidsCount: number;
   totalCount: number;
+  inviteSentAt?: string | null;
 }
 
 export interface GuestSection {

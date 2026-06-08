@@ -8,8 +8,6 @@ interface RsvpTrackerTabProps {
 }
 
 export function RsvpTrackerTab({ rsvpList, onClear }: RsvpTrackerTabProps) {
-  const accepted = rsvpList.filter((r) => r.status === "Accepted");
-
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-start gap-3">
@@ -20,17 +18,6 @@ export function RsvpTrackerTab({ rsvpList, onClear }: RsvpTrackerTabProps) {
         <button type="button" onClick={onClear} className="text-xs text-red-600 font-bold">
           Clear
         </button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Stat label="Accepted" value={accepted.length} tone="emerald" />
-        <Stat
-          label="Confirmed Pax"
-          value={accepted.reduce((acc, r) => acc + r.ladies + r.gents + r.kids, 0)}
-          tone="slate"
-        />
-        <Stat label="Ladies" value={accepted.reduce((acc, r) => acc + r.ladies, 0)} tone="slate" />
-        <Stat label="Kids" value={accepted.reduce((acc, r) => acc + r.kids, 0)} tone="amber" />
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
@@ -67,29 +54,6 @@ export function RsvpTrackerTab({ rsvpList, onClear }: RsvpTrackerTabProps) {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone: "emerald" | "slate" | "amber";
-}) {
-  const tones = {
-    emerald: "bg-emerald-50 border-emerald-100 text-emerald-800",
-    slate: "bg-slate-50 border-slate-200 text-slate-800",
-    amber: "bg-amber-50 border-amber-100 text-amber-800",
-  };
-
-  return (
-    <div className={`rounded-xl border p-4 ${tones[tone]}`}>
-      <div className="text-2xl font-black">{value}</div>
-      <div className="text-[10px] font-bold uppercase mt-1 opacity-70">{label}</div>
     </div>
   );
 }

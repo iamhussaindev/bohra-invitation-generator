@@ -19,6 +19,7 @@ type GuestEntryRow = {
   kids_count: number;
   total_count: number;
   sort_order: number;
+  invite_sent_at: string | null;
 };
 
 function toEntry(row: GuestEntryRow): GuestEntry {
@@ -37,6 +38,7 @@ function toEntry(row: GuestEntryRow): GuestEntry {
     gentsCount: row.gents_count,
     kidsCount: row.kids_count,
     totalCount: row.total_count,
+    inviteSentAt: row.invite_sent_at,
   };
 }
 
@@ -94,6 +96,7 @@ export async function saveGuestSections(sections: GuestSection[]): Promise<void>
         kids_count: entry.kidsCount,
         total_count: entry.totalCount,
         sort_order: entryIdx,
+        invite_sent_at: entry.inviteSentAt ?? null,
       });
     });
   });
@@ -121,6 +124,19 @@ export async function saveGuestSections(sections: GuestSection[]): Promise<void>
     const { error: insertEntriesError } = await supabase.from("guest_entries").insert(entryRows);
     if (insertEntriesError) throw new Error(insertEntriesError.message);
   }
+}
+
+export async function markInviteSent(guestId: string, sentAt = new Date().toISOString()): Promise<void> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from("guest_entries")
+    .update({ invite_sent_at: sentAt })
+    .eq("id", guestId)
+    .is("invite_sent_at", null);
+
+  if (error) throw new Error(error.message);
 }
 
 function slugify(value: string): string {

@@ -1,11 +1,11 @@
 "use client";
 
-import { Camera, Check, RefreshCw, Sparkles, Upload, Users } from "lucide-react";
+import { Camera, Check, RefreshCw, Send, Sparkles, Upload, Users } from "lucide-react";
+import type { GuestReport } from "@/lib/guest-stats";
 
 interface HomeTabProps {
-  totalFamilies: number;
+  guestReport: GuestReport;
   totalSections: number;
-  acceptedRsvps: number;
   hasCustomTemplate: boolean;
   isProcessing: boolean;
   errorMsg: string;
@@ -16,9 +16,8 @@ interface HomeTabProps {
 }
 
 export function HomeTab({
-  totalFamilies,
+  guestReport,
   totalSections,
-  acceptedRsvps,
   hasCustomTemplate,
   isProcessing,
   errorMsg,
@@ -102,10 +101,49 @@ export function HomeTab({
         </div>
       )}
 
+      <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100">
+          <h3 className="font-serif font-bold text-slate-900">Invite Report</h3>
+          <p className="text-xs text-slate-500 mt-0.5">Totals from your guest list</p>
+        </div>
+        <div className="grid grid-cols-2 divide-x divide-y divide-slate-100">
+          <ReportStat label="Families" value={guestReport.totalFamilies} />
+          <ReportStat label="Ladies" value={guestReport.totalLadies} />
+          <ReportStat label="Gents" value={guestReport.totalGents} />
+          <ReportStat label="Kids" value={guestReport.totalKids} />
+        </div>
+        <div className="px-5 py-4 bg-amber-50 border-t border-amber-100">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Send className="w-4 h-4 text-[#BF3B2B] shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Invites Sent</p>
+                <p className="text-[11px] text-slate-500">Recorded when you download or share a pass</p>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-2xl font-bold text-[#BF3B2B]">
+                {guestReport.invitesSentFamilies}
+                <span className="text-sm font-semibold text-slate-400"> / {guestReport.totalFamilies}</span>
+              </p>
+              <p className="text-[10px] uppercase font-semibold text-slate-500">families</p>
+            </div>
+          </div>
+          {guestReport.totalFamilies > 0 && (
+            <div className="mt-3 h-2 bg-white rounded-full overflow-hidden border border-amber-200">
+              <div
+                className="h-full bg-[#BF3B2B] rounded-full transition-all"
+                style={{
+                  width: `${Math.round((guestReport.invitesSentFamilies / guestReport.totalFamilies) * 100)}%`,
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </section>
+
       <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Families" value={String(totalFamilies)} />
         <StatCard label="Sections" value={String(totalSections)} />
-        <StatCard label="RSVPs" value={String(acceptedRsvps)} />
         <StatCard label="Template" value={hasCustomTemplate ? "Active" : "Loading..."} />
       </div>
 
@@ -151,6 +189,15 @@ export function HomeTab({
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function ReportStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="px-5 py-4 text-center">
+      <div className="text-2xl font-bold text-slate-900">{value}</div>
+      <div className="text-[10px] uppercase font-semibold text-slate-500 mt-1">{label}</div>
     </div>
   );
 }

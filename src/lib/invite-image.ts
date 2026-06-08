@@ -47,7 +47,7 @@ async function shareOrOpenImage(file: File): Promise<void> {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
-export async function downloadInviteImage(dataUrl: string, filename: string): Promise<void> {
+export async function downloadInviteImage(dataUrl: string, filename: string): Promise<boolean> {
   const jpegDataUrl = dataUrl.startsWith("data:image/jpeg")
     ? dataUrl
     : await compressDataUrlToJpeg(dataUrl);
@@ -58,11 +58,11 @@ export async function downloadInviteImage(dataUrl: string, filename: string): Pr
   if (isIosDevice()) {
     try {
       await shareOrOpenImage(file);
+      return true;
     } catch (error) {
-      if ((error as Error).name === "AbortError") return;
+      if ((error as Error).name === "AbortError") return false;
       throw error;
     }
-    return;
   }
 
   const url = URL.createObjectURL(blob);
@@ -74,6 +74,7 @@ export async function downloadInviteImage(dataUrl: string, filename: string): Pr
   link.click();
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(url), 2000);
+  return true;
 }
 
 export function getCanvasImageDataUrl(canvas: HTMLCanvasElement | null): string | null {
