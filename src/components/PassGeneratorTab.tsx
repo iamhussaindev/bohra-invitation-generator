@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Download, RefreshCw, Share2 } from "lucide-react";
-import { parseApiJson } from "@/lib/api-utils";
 import type { GuestEntry, GuestSection, OverlayCoords } from "@/lib/types";
 import { DEFAULT_COORDS } from "@/lib/types";
 import {
   drawGuestOverlay,
   generateFallbackTemplate,
   generateRsvpCode,
+  renderClientInviteImage,
 } from "@/lib/client-canvas";
 import { downloadInviteImage } from "@/lib/invite-image";
 import { getRsvpPageUrl, shareInviteWithImage } from "@/lib/share-utils";
@@ -95,30 +95,19 @@ export function PassGeneratorTab({
     };
   }, [selectedGuest, uploadedTemplateImage, coords]);
 
-  const generateServerImage = useCallback(async (guest: GuestEntry) => {
-    const response = await fetch("/api/generate-invite", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ guest, coords }),
-    });
-    const data = await parseApiJson<{ image?: string; error?: string }>(response);
-    if (!response.ok || !data.image) {
-      throw new Error(data.error || "Failed to generate invite.");
-    }
-    return data.image;
-  }, [coords]);
-
-  const getInviteImage = useCallback(async (): Promise<string> => {
-    if (!selectedGuest) throw new Error("No guest selected.");
-    return generateServerImage(selectedGuest);
-  }, [generateServerImage, selectedGuest]);
+  const getInviteImage = useCallback(
+    async (guest: GuestEntry): Promise<string> => {
+      return renderClientInviteImage(guest, coords, uploadedTemplateImage);
+    },
+    [coords, uploadedTemplateImage]
+  );
 
   const handleDownload = async () => {
     if (!selectedGuest) return;
     setIsGenerating(true);
     setErrorMsg("");
     try {
-      const image = await getInviteImage();
+      const image = await getInviteImage(selectedGuest);
       const sent = await downloadInviteImage(
         image,
         `boarding-pass-${selectedGuest.cleanedNames.replace(/\s+/g, "_")}.png`
@@ -139,7 +128,7 @@ export function PassGeneratorTab({
     try {
       const code = generateRsvpCode();
       const rsvpUrl = getRsvpPageUrl(selectedGuest, code);
-      const image = await getInviteImage();
+      const image = await getInviteImage(selectedGuest);
       const result = await shareInviteWithImage({
         imageDataUrl: image,
         guestName: selectedGuest.cleanedNames,
@@ -174,7 +163,7 @@ export function PassGeneratorTab({
       for (let i = 0; i < allGuests.length; i++) {
         const guest = allGuests[i];
         setBulkProgress(`${i + 1} / ${allGuests.length}: ${guest.cleanedNames}`);
-        const image = await generateServerImage(guest);
+        const image = await getInviteImage(guest);
         const sent = await downloadInviteImage(
           image,
           `boarding-pass-${guest.cleanedNames.replace(/\s+/g, "_")}.png`

@@ -12,20 +12,22 @@ export function registerServerCanvasFonts(): void {
   const nameFontPath = join(fontsDir, "LibreBaskerville-BoldItalic.ttf");
   const countFontPath = join(fontsDir, "RobotoMono-Bold.ttf");
 
-  if (existsSync(nameFontPath)) {
-    registerFont(nameFontPath, {
-      family: INVITE_NAME_FONT,
-      weight: "bold",
-      style: "italic",
-    });
+  if (!existsSync(nameFontPath) || !existsSync(countFontPath)) {
+    throw new Error(
+      "Invite fonts missing on server. Ensure public/fonts is deployed with the app."
+    );
   }
 
-  if (existsSync(countFontPath)) {
-    registerFont(countFontPath, {
-      family: INVITE_COUNT_FONT,
-      weight: "bold",
-    });
-  }
+  registerFont(nameFontPath, {
+    family: INVITE_NAME_FONT,
+    weight: "bold",
+    style: "italic",
+  });
+
+  registerFont(countFontPath, {
+    family: INVITE_COUNT_FONT,
+    weight: "bold",
+  });
 
   fontsRegistered = true;
 }

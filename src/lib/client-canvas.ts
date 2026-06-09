@@ -1,5 +1,5 @@
 import type { GuestEntry, OverlayCoords } from "@/lib/types";
-import { buildCountFont, buildNameFont } from "@/lib/canvas-fonts";
+import { buildCountFont, buildNameFont, ensureInviteFontsLoaded } from "@/lib/canvas-fonts";
 
 export function drawGuestOverlay(
   ctx: CanvasRenderingContext2D,
@@ -140,4 +140,48 @@ export { getRsvpPageUrl as buildRsvpUrl } from "@/lib/share-utils";
 
 export function generateRsvpCode() {
   return Math.random().toString(36).substring(2, 7).toUpperCase();
+}
+
+function loadTemplateImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Could not load invitation template."));
+    image.src = src;
+  });
+}
+
+export async function renderClientInviteImage(
+  guest: GuestEntry,
+  coords: OverlayCoords,
+  templateImage: string | null
+): Promise<string> {
+  await ensureInviteFontsLoaded();
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not render invite image.");
+
+  if (templateImage) {
+    const img = await loadTemplateImage(templateImage);
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+    drawGuestOverlay(ctx, guest, coords);
+  } else {
+    canvas.width = 800;
+    canvas.height = 1000;
+    generateFallbackTemplate(ctx, 800, 1000, guest.cleanedNames, {
+      ladies: guest.ladiesCount,
+      gents: guest.gentsCount,
+      kids: guest.kidsCount,
+    });
+  }
+
+  const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+  if (!dataUrl.startsWith("data:image/jpeg")) {
+    throw new Error("Invite image render failed.");
+  }
+
+  return dataUrl;
 }
