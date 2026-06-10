@@ -70,7 +70,7 @@ export function GuestListTab({
             <Plus className="w-3.5 h-3.5" /> Section
           </button>
           <label className="bg-white border border-slate-300 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1 cursor-pointer">
-            <Upload className="w-3.5 h-3.5" /> Re-scan
+            <Upload className="w-3.5 h-3.5" /> Add Ledger
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"

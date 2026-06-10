@@ -90,3 +90,60 @@ export function normalizeLedgerSections(payload: unknown): GuestSection[] {
 
   return sections;
 }
+
+function normalizeSectionKey(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function ensureUniqueEntryIds(entries: GuestEntry[], usedIds: Set<string>): GuestEntry[] {
+  return entries.map((entry, index) => {
+    if (!usedIds.has(entry.id)) {
+      usedIds.add(entry.id);
+      return entry;
+    }
+
+    const id = `ledger-merge-${Date.now()}-${index}`;
+    usedIds.add(id);
+    return { ...entry, id };
+  });
+}
+
+export function mergeGuestSections(
+  existing: GuestSection[],
+  incoming: GuestSection[]
+): GuestSection[] {
+  if (existing.length === 0) return incoming;
+
+  const merged = existing.map((section) => ({
+    ...section,
+    entries: [...section.entries],
+  }));
+
+  const sectionIndexByKey = new Map<string, number>();
+  merged.forEach((section, index) => {
+    sectionIndexByKey.set(normalizeSectionKey(section.sectionName), index);
+  });
+
+  const usedIds = new Set<string>();
+  merged.forEach((section) => {
+    section.entries.forEach((entry) => usedIds.add(entry.id));
+  });
+
+  for (const incomingSection of incoming) {
+    const entries = ensureUniqueEntryIds(incomingSection.entries, usedIds);
+    const key = normalizeSectionKey(incomingSection.sectionName);
+    const existingIndex = sectionIndexByKey.get(key);
+
+    if (existingIndex !== undefined) {
+      merged[existingIndex].entries.push(...entries);
+    } else {
+      sectionIndexByKey.set(key, merged.length);
+      merged.push({
+        sectionName: incomingSection.sectionName,
+        entries,
+      });
+    }
+  }
+
+  return merged;
+}

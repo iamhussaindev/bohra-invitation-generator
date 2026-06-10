@@ -10,6 +10,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { parseApiJson } from "@/lib/api-utils";
 import { compressImageForUpload } from "@/lib/image-utils";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { mergeGuestSections } from "@/lib/ledger-normalize";
 import { computeGuestReport } from "@/lib/guest-stats";
 import { fetchGuestSections, markInviteSent, saveGuestSections } from "@/lib/supabase/guests";
 import { clearRsvps, fetchRsvps } from "@/lib/supabase/rsvps";
@@ -133,12 +134,19 @@ export default function HomePage() {
       }
 
       markGuestsEdited();
-      setGuestSections(data.sections);
-      if (data.sections[0]?.entries[0]) {
-        setSelectedGuest(data.sections[0].entries[0]);
+
+      let mergedSections: GuestSection[] = [];
+      setGuestSections((prev) => {
+        mergedSections = mergeGuestSections(prev, data.sections!);
+        return mergedSections;
+      });
+
+      if (!selectedGuest && mergedSections[0]?.entries[0]) {
+        setSelectedGuest(mergedSections[0].entries[0]);
       }
+
       if (isSupabaseConfigured()) {
-        await saveGuestSections(data.sections);
+        await saveGuestSections(mergedSections);
       }
       setActiveTab("guests");
     } catch (error) {
