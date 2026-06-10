@@ -1,5 +1,5 @@
 import type { GuestEntry, OverlayCoords } from "@/lib/types";
-import { buildCountFont, buildNameFont } from "@/lib/canvas-fonts";
+import { buildCountFont, buildNameFont, formatInviteCount } from "@/lib/canvas-fonts";
 import { registerServerCanvasFonts } from "@/lib/server-canvas-fonts";
 
 registerServerCanvasFonts();
@@ -109,8 +109,8 @@ export function generateFallbackTemplate(
   ctx.fillStyle = "#BF3B2B";
   ctx.font = "bold 16px Courier New";
   const totalInvitees = counts.ladies + counts.gents;
-  ctx.fillText(`INVITEES: ( ${totalInvitees} )`, 260, 695);
-  ctx.fillText(`KIDS: ( ${counts.kids} )`, 500, 695);
+  ctx.fillText(`INVITEES: ( ${formatInviteCount(totalInvitees)} )`, 260, 695);
+  ctx.fillText(`KIDS: ( ${formatInviteCount(counts.kids)} )`, 500, 695);
 
   ctx.fillStyle = "#7F8C8D";
   ctx.font = "12px Courier New";
@@ -134,8 +134,8 @@ export function drawGuestOverlay(
   ctx.fillStyle = "#BF3B2B";
   ctx.font = buildCountFont(coords.countFontSize);
   ctx.textAlign = "center";
-  ctx.fillText(String(adultCount), coords.inviteesX, coords.inviteesY);
-  ctx.fillText(String(guest.kidsCount), coords.kidsX, coords.kidsY);
+  ctx.fillText(formatInviteCount(adultCount), coords.inviteesX, coords.inviteesY);
+  ctx.fillText(formatInviteCount(guest.kidsCount), coords.kidsX, coords.kidsY);
 
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";

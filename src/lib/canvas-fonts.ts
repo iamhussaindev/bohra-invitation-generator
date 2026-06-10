@@ -9,6 +9,10 @@ export function buildCountFont(size: number): string {
   return `bold ${size}px ${INVITE_COUNT_FONT}`;
 }
 
+export function formatInviteCount(count: number): string {
+  return count === 0 ? "-" : String(count);
+}
+
 export async function ensureInviteFontsLoaded(): Promise<void> {
   if (typeof document === "undefined") return;
 

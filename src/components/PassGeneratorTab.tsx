@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Download, RefreshCw, Share2 } from "lucide-react";
+import { formatInviteCount } from "@/lib/canvas-fonts";
 import type { GuestEntry, GuestSection, OverlayCoords } from "@/lib/types";
 import { DEFAULT_COORDS } from "@/lib/types";
 import {
@@ -338,7 +339,7 @@ function CountPill({ label, value }: { label: string; value: number }) {
   return (
     <div className="bg-slate-50 border border-slate-200 rounded-lg py-2">
       <div className="text-[10px] uppercase text-slate-400 font-bold">{label}</div>
-      <div className="font-bold text-slate-900">{value}</div>
+      <div className="font-bold text-slate-900">{formatInviteCount(value)}</div>
     </div>
   );
 }
