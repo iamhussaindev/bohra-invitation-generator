@@ -1,7 +1,7 @@
 import type { GuestEntry, OverlayCoords } from "@/lib/types";
 import {
-  buildCountFont,
   buildNameFont,
+  buildPassCountFont,
   ensureInviteFontsLoaded,
   formatInviteCount,
 } from "@/lib/canvas-fonts";
@@ -24,10 +24,15 @@ export function drawGuestOverlay(
   ctx.fillText(guest.cleanedNames, coords.nameX, coords.nameY);
 
   ctx.fillStyle = "#BF3B2B";
-  ctx.font = buildCountFont(coords.countFontSize);
   ctx.textAlign = "center";
-  ctx.fillText(formatPassAdultInvite(guest), coords.inviteesX, coords.inviteesY);
-  ctx.fillText(formatPassKidsInvite(guest), coords.kidsX, coords.kidsY);
+
+  const adultLabel = formatPassAdultInvite(guest);
+  ctx.font = buildPassCountFont(coords.countFontSize, adultLabel);
+  ctx.fillText(adultLabel, coords.inviteesX, coords.inviteesY);
+
+  const kidsLabel = formatPassKidsInvite(guest);
+  ctx.font = buildPassCountFont(coords.countFontSize, kidsLabel);
+  ctx.fillText(kidsLabel, coords.kidsX, coords.kidsY);
 
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";

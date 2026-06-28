@@ -3,12 +3,7 @@
 import { useRef, useState } from "react";
 import { ChevronDown, Pencil, Plus, RefreshCw, Ticket, Trash2, Upload } from "lucide-react";
 import { capitalizeGuestName, formatGuestName } from "@/lib/name-utils";
-import {
-  getInviteAdultsLabel,
-  getInviteKidsLabel,
-  getLedgerAdults,
-  getLedgerKids,
-} from "@/lib/invite-counts";
+import { InviteCountEditor } from "@/components/InviteCountEditor";
 import type { GuestEntry, GuestSection } from "@/lib/types";
 
 interface GuestListTabProps {
@@ -240,74 +235,11 @@ export function GuestListTab({
                               <div className="py-2 font-bold text-slate-900">{entry.totalCount}</div>
                             </div>
                           </div>
-                          <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3 space-y-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="text-[10px] font-bold uppercase text-amber-800">
-                                Invite Counts (on pass)
-                              </p>
-                              <button
-                                type="button"
-                                onClick={() => onFillEntryInvites(sectionIdx, entryIdx)}
-                                className="text-[10px] font-semibold text-[#BF3B2B] shrink-0"
-                              >
-                                Add All
-                              </button>
-                            </div>
-                            <p className="text-[10px] text-amber-900/70 text-center">
-                              Ledger: {getLedgerAdults(entry)} adults · {getLedgerKids(entry)} kids
-                              {entry.totalCount > getLedgerAdults(entry) + getLedgerKids(entry)
-                                ? ` · ${entry.totalCount} total`
-                                : ""}
-                            </p>
-                            <div className="grid grid-cols-2 gap-2 text-center">
-                              <div>
-                                <label className="text-[10px] uppercase text-slate-400 font-bold block mb-1">
-                                  Adults
-                                </label>
-                                {entry.inviteAllAdults ? (
-                                  <div className="w-full bg-white border border-[#BF3B2B]/30 rounded-lg py-2 text-center text-sm font-bold text-[#BF3B2B]">
-                                    All
-                                  </div>
-                                ) : (
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    value={getInviteAdultsLabel(entry)}
-                                    onChange={(e) =>
-                                      onUpdateEntry(sectionIdx, entryIdx, {
-                                        inviteAdultsCount: parseInt(e.target.value, 10) || 0,
-                                        inviteAllAdults: false,
-                                      })
-                                    }
-                                    className="w-full bg-white border border-slate-200 rounded-lg py-2 text-center text-sm"
-                                  />
-                                )}
-                              </div>
-                              <div>
-                                <label className="text-[10px] uppercase text-slate-400 font-bold block mb-1">
-                                  Kids
-                                </label>
-                                {entry.inviteAllKids ? (
-                                  <div className="w-full bg-white border border-[#BF3B2B]/30 rounded-lg py-2 text-center text-sm font-bold text-[#BF3B2B]">
-                                    All
-                                  </div>
-                                ) : (
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    value={getInviteKidsLabel(entry)}
-                                    onChange={(e) =>
-                                      onUpdateEntry(sectionIdx, entryIdx, {
-                                        inviteKidsCount: parseInt(e.target.value, 10) || 0,
-                                        inviteAllKids: false,
-                                      })
-                                    }
-                                    className="w-full bg-white border border-slate-200 rounded-lg py-2 text-center text-sm"
-                                  />
-                                )}
-                              </div>
-                            </div>
-                          </div>
+                          <InviteCountEditor
+                            entry={entry}
+                            onAddAll={() => onFillEntryInvites(sectionIdx, entryIdx)}
+                            onUpdate={(fields) => onUpdateEntry(sectionIdx, entryIdx, fields)}
+                          />
                           <div className="flex gap-2">
                             <button
                               type="button"

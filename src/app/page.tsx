@@ -12,9 +12,10 @@ import { compressImageForUpload } from "@/lib/image-utils";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { mergeGuestSections } from "@/lib/ledger-normalize";
 import {
+  applyAddAllInvites,
+  applyAddAllInvitesToGuest,
+  applyAddAllInvitesToSections,
   applyEntryUpdate,
-  applyFillAllInvites,
-  fillInviteCountsFromLedger,
   findGuestEntry,
 } from "@/lib/invite-counts";
 import { computeGuestReport } from "@/lib/guest-stats";
@@ -181,7 +182,7 @@ export default function HomePage() {
     setGuestSections((prev) => {
       const entry = prev[sectionIdx]?.entries[entryIdx];
       if (!entry) return prev;
-      return applyEntryUpdate(prev, sectionIdx, entryIdx, fillInviteCountsFromLedger(entry));
+      return applyEntryUpdate(prev, sectionIdx, entryIdx, applyAddAllInvites(entry));
     });
   };
 
@@ -236,20 +237,12 @@ export default function HomePage() {
 
   const handleFillAllInvites = () => {
     markGuestsEdited();
-    setGuestSections((prev) => applyFillAllInvites(prev));
+    setGuestSections((prev) => applyAddAllInvitesToSections(prev));
   };
 
   const handleFillGuestInvites = (guestId: string) => {
     markGuestsEdited();
-    setGuestSections((prev) => {
-      for (let sectionIdx = 0; sectionIdx < prev.length; sectionIdx += 1) {
-        const entryIdx = prev[sectionIdx].entries.findIndex((entry) => entry.id === guestId);
-        if (entryIdx === -1) continue;
-        const entry = prev[sectionIdx].entries[entryIdx];
-        return applyEntryUpdate(prev, sectionIdx, entryIdx, fillInviteCountsFromLedger(entry));
-      }
-      return prev;
-    });
+    setGuestSections((prev) => applyAddAllInvitesToGuest(prev, guestId));
   };
 
   const handleRemoveEntry = (sectionIdx: number, entryIdx: number) => {

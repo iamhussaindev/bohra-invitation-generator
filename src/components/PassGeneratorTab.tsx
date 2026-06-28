@@ -6,13 +6,10 @@ import { ensureInviteFontsLoaded } from "@/lib/canvas-fonts";
 import {
   formatShareAdultInvite,
   formatShareKidsInvite,
-  getInviteAdultsLabel,
-  getInviteKidsLabel,
-  getLedgerAdults,
-  getLedgerKids,
 } from "@/lib/invite-counts";
 import type { GuestEntry, GuestSection, OverlayCoords } from "@/lib/types";
 import { DEFAULT_COORDS } from "@/lib/types";
+import { InviteCountEditor } from "@/components/InviteCountEditor";
 import {
   drawGuestOverlay,
   generateFallbackTemplate,
@@ -63,36 +60,41 @@ export function PassGeneratorTab({
 
     setIsCanvasReady(false);
     let cancelled = false;
+    const guest = selectedGuest;
 
     async function renderPreview() {
       await ensureInviteFontsLoaded();
-      if (cancelled || !canvasRef.current || !selectedGuest) return;
+      if (cancelled || !canvasRef.current) return;
 
       const canvas = canvasRef.current;
 
       if (uploadedTemplateImage) {
         const img = new Image();
-        img.src = uploadedTemplateImage;
-        img.onload = () => {
-          if (cancelled) return;
+        const drawToCanvas = () => {
+          if (cancelled || !canvasRef.current) return;
           canvas.width = img.width;
           canvas.height = img.height;
           const ctx = canvas.getContext("2d");
           if (!ctx) return;
           ctx.drawImage(img, 0, 0);
-          drawGuestOverlay(ctx, selectedGuest, coords);
+          drawGuestOverlay(ctx, guest, coords);
           setIsCanvasReady(true);
         };
+        img.onload = drawToCanvas;
         img.onerror = () => setErrorMsg("Could not load invitation template.");
+        img.src = uploadedTemplateImage;
+        if (img.complete) {
+          drawToCanvas();
+        }
       } else {
         canvas.width = 800;
         canvas.height = 1000;
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
-        generateFallbackTemplate(ctx, 800, 1000, selectedGuest.cleanedNames, {
-          ladies: selectedGuest.ladiesCount,
-          gents: selectedGuest.gentsCount,
-          kids: selectedGuest.kidsCount,
+        generateFallbackTemplate(ctx, 800, 1000, guest.cleanedNames, {
+          ladies: guest.ladiesCount,
+          gents: guest.gentsCount,
+          kids: guest.kidsCount,
         });
         setIsCanvasReady(true);
       }
@@ -103,7 +105,15 @@ export function PassGeneratorTab({
     return () => {
       cancelled = true;
     };
-  }, [selectedGuest, uploadedTemplateImage, coords]);
+  }, [
+    selectedGuest,
+    selectedGuest?.inviteAllAdults,
+    selectedGuest?.inviteAllKids,
+    selectedGuest?.inviteAdultsCount,
+    selectedGuest?.inviteKidsCount,
+    uploadedTemplateImage,
+    coords,
+  ]);
 
   const getInviteImage = useCallback(
     async (guest: GuestEntry): Promise<string> => {
@@ -265,49 +275,18 @@ export function PassGeneratorTab({
           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm font-bold"
         />
 
-        <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3 space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] font-bold uppercase text-amber-800">Invite Counts (on pass)</p>
-            <button
-              type="button"
-              onClick={() => onFillGuestInvites(selectedGuest.id)}
-              className="text-[10px] font-semibold text-[#BF3B2B]"
-            >
-              Add All
-            </button>
-          </div>
-          <p className="text-[10px] text-amber-900/70 text-center">
-            Ledger: {getLedgerAdults(selectedGuest)} adults · {getLedgerKids(selectedGuest)} kids
-          </p>
-          <div className="grid grid-cols-2 gap-2 text-center text-xs">
-            <InviteCountField
-              label="Adults"
-              displayValue={getInviteAdultsLabel(selectedGuest)}
-              isAll={Boolean(selectedGuest.inviteAllAdults)}
-              onChange={(value) => {
-                for (const [sIdx, section] of guestSections.entries()) {
-                  const eIdx = section.entries.findIndex((entry) => entry.id === selectedGuest.id);
-                  if (eIdx === -1) continue;
-                  onUpdateEntry(sIdx, eIdx, { inviteAdultsCount: value, inviteAllAdults: false });
-                  break;
-                }
-              }}
-            />
-            <InviteCountField
-              label="Kids"
-              displayValue={getInviteKidsLabel(selectedGuest)}
-              isAll={Boolean(selectedGuest.inviteAllKids)}
-              onChange={(value) => {
-                for (const [sIdx, section] of guestSections.entries()) {
-                  const eIdx = section.entries.findIndex((entry) => entry.id === selectedGuest.id);
-                  if (eIdx === -1) continue;
-                  onUpdateEntry(sIdx, eIdx, { inviteKidsCount: value, inviteAllKids: false });
-                  break;
-                }
-              }}
-            />
-          </div>
-        </div>
+        <InviteCountEditor
+          entry={selectedGuest}
+          onAddAll={() => onFillGuestInvites(selectedGuest.id)}
+          onUpdate={(fields) => {
+            for (const [sIdx, section] of guestSections.entries()) {
+              const eIdx = section.entries.findIndex((entry) => entry.id === selectedGuest.id);
+              if (eIdx === -1) continue;
+              onUpdateEntry(sIdx, eIdx, fields);
+              break;
+            }
+          }}
+        />
       </div>
 
       <div className="bg-slate-100 rounded-2xl p-3 flex justify-center overflow-hidden">
@@ -378,37 +357,6 @@ export function PassGeneratorTab({
           <SliderField label="Count Font Size" value={coords.countFontSize} min={18} max={90} onChange={(v) => onCoordsChange({ ...coords, countFontSize: v })} />
         </div>
       </details>
-    </div>
-  );
-}
-
-function InviteCountField({
-  label,
-  displayValue,
-  isAll,
-  onChange,
-}: {
-  label: string;
-  displayValue: string;
-  isAll: boolean;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <div>
-      <label className="text-[10px] uppercase text-slate-400 font-bold block mb-1">{label}</label>
-      {isAll ? (
-        <div className="w-full bg-white border border-[#BF3B2B]/30 rounded-lg py-2 text-center text-sm font-bold text-[#BF3B2B]">
-          All
-        </div>
-      ) : (
-        <input
-          type="number"
-          min={0}
-          value={displayValue}
-          onChange={(e) => onChange(parseInt(e.target.value, 10) || 0)}
-          className="w-full bg-white border border-slate-200 rounded-lg py-2 text-center text-sm font-bold text-slate-900"
-        />
-      )}
     </div>
   );
 }

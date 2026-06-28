@@ -9,18 +9,18 @@ export function getLedgerKids(entry: GuestEntry): number {
   return entry.kidsCount;
 }
 
-/** Label shown in invite count inputs. */
 export function getInviteAdultsLabel(entry: GuestEntry): string {
   if (entry.inviteAllAdults) return "All";
-  return String(entry.inviteAdultsCount ?? 0);
+  if (entry.inviteAdultsCount != null) return String(entry.inviteAdultsCount);
+  return String(getLedgerAdults(entry));
 }
 
 export function getInviteKidsLabel(entry: GuestEntry): string {
   if (entry.inviteAllKids) return "All";
-  return String(entry.inviteKidsCount ?? 0);
+  if (entry.inviteKidsCount != null) return String(entry.inviteKidsCount);
+  return String(getLedgerKids(entry));
 }
 
-/** Values rendered on the boarding pass (unset falls back to ledger). */
 export function getInviteAdults(entry: GuestEntry): number {
   if (entry.inviteAdultsCount != null) return entry.inviteAdultsCount;
   return getLedgerAdults(entry);
@@ -31,32 +31,51 @@ export function getInviteKids(entry: GuestEntry): number {
   return getLedgerKids(entry);
 }
 
-export function fillInviteCountsFromLedger(entry: GuestEntry): Pick<
+export function revertInviteCounts(entry: GuestEntry): Pick<
   GuestEntry,
   "inviteAdultsCount" | "inviteKidsCount" | "inviteAllAdults" | "inviteAllKids"
 > {
-  const ledgerAdults = getLedgerAdults(entry);
-  const ledgerKids = getLedgerKids(entry);
-
-  if (ledgerAdults === 0 && ledgerKids === 0 && entry.totalCount > 0) {
-    return {
-      inviteAdultsCount: entry.totalCount,
-      inviteKidsCount: 0,
-      inviteAllAdults: true,
-      inviteAllKids: false,
-    };
-  }
-
   return {
-    inviteAdultsCount: ledgerAdults,
-    inviteKidsCount: ledgerKids,
-    inviteAllAdults: ledgerAdults > 0 || entry.totalCount > 0,
-    inviteAllKids: ledgerKids > 0,
+    inviteAdultsCount: getLedgerAdults(entry),
+    inviteKidsCount: getLedgerKids(entry),
+    inviteAllAdults: false,
+    inviteAllKids: false,
   };
 }
 
-export function withFilledInviteCounts(entry: GuestEntry): GuestEntry {
-  return { ...entry, ...fillInviteCountsFromLedger(entry) };
+export function getInviteAdultsInputValue(entry: GuestEntry): number {
+  if (!entry.inviteAllAdults && entry.inviteAdultsCount != null) {
+    return entry.inviteAdultsCount;
+  }
+  return getLedgerAdults(entry);
+}
+
+export function getInviteKidsInputValue(entry: GuestEntry): number {
+  if (!entry.inviteAllKids && entry.inviteKidsCount != null) {
+    return entry.inviteKidsCount;
+  }
+  return getLedgerKids(entry);
+}
+
+export function isInviteCountsModified(entry: GuestEntry): boolean {
+  return (
+    Boolean(entry.inviteAllAdults) ||
+    Boolean(entry.inviteAllKids) ||
+    (entry.inviteAdultsCount != null &&
+      entry.inviteAdultsCount !== getLedgerAdults(entry)) ||
+    (entry.inviteKidsCount != null && entry.inviteKidsCount !== getLedgerKids(entry))
+  );
+}
+
+/** Add All — show "All" on the boarding pass for adults (and kids when ledger has kids). */
+export function applyAddAllInvites(entry: GuestEntry): Pick<
+  GuestEntry,
+  "inviteAllAdults" | "inviteAllKids"
+> {
+  return {
+    inviteAllAdults: true,
+    inviteAllKids: getLedgerKids(entry) > 0,
+  };
 }
 
 export function applyEntryUpdate(
@@ -85,13 +104,14 @@ export function applyEntryUpdate(
   ) {
     nextEntry.inviteAllAdults = false;
     nextEntry.inviteAllKids = false;
-  } else {
-    if (updatedFields.inviteAdultsCount != null && updatedFields.inviteAllAdults !== true) {
-      nextEntry.inviteAllAdults = false;
-    }
-    if (updatedFields.inviteKidsCount != null && updatedFields.inviteAllKids !== true) {
-      nextEntry.inviteAllKids = false;
-    }
+  }
+
+  if (updatedFields.inviteAdultsCount != null && updatedFields.inviteAllAdults !== true) {
+    nextEntry.inviteAllAdults = false;
+  }
+
+  if (updatedFields.inviteKidsCount != null && updatedFields.inviteAllKids !== true) {
+    nextEntry.inviteAllKids = false;
   }
 
   return sections.map((currentSection, sIdx) => {
@@ -106,13 +126,25 @@ export function applyEntryUpdate(
   });
 }
 
-export function applyFillAllInvites(sections: GuestSection[]): GuestSection[] {
+export function applyAddAllInvitesToSections(sections: GuestSection[]): GuestSection[] {
   return sections.map((section) => ({
     ...section,
     entries: section.entries.map((entry) => ({
       ...entry,
-      ...fillInviteCountsFromLedger(entry),
+      ...applyAddAllInvites(entry),
     })),
+  }));
+}
+
+export function applyAddAllInvitesToGuest(
+  sections: GuestSection[],
+  guestId: string
+): GuestSection[] {
+  return sections.map((section) => ({
+    ...section,
+    entries: section.entries.map((entry) =>
+      entry.id === guestId ? { ...entry, ...applyAddAllInvites(entry) } : entry
+    ),
   }));
 }
 
