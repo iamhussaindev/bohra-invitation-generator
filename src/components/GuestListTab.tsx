@@ -5,8 +5,8 @@ import { ChevronDown, Pencil, Plus, RefreshCw, Ticket, Trash2, Upload } from "lu
 import { capitalizeGuestName, formatGuestName } from "@/lib/name-utils";
 import {
   fillInviteCountsFromLedger,
-  getInviteAdults,
-  getInviteKids,
+  getInviteAdultsDisplay,
+  getInviteKidsDisplay,
 } from "@/lib/invite-counts";
 import type { GuestEntry, GuestSection } from "@/lib/types";
 
@@ -260,7 +260,7 @@ export function GuestListTab({
                                 <input
                                   type="number"
                                   min={0}
-                                  value={getInviteAdults(entry)}
+                                  value={getInviteAdultsDisplay(entry)}
                                   onChange={(e) =>
                                     onUpdateEntry(sectionIdx, entryIdx, {
                                       inviteAdultsCount: parseInt(e.target.value, 10) || 0,
@@ -276,7 +276,7 @@ export function GuestListTab({
                                 <input
                                   type="number"
                                   min={0}
-                                  value={getInviteKids(entry)}
+                                  value={getInviteKidsDisplay(entry)}
                                   onChange={(e) =>
                                     onUpdateEntry(sectionIdx, entryIdx, {
                                       inviteKidsCount: parseInt(e.target.value, 10) || 0,

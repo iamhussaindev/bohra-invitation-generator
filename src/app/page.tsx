@@ -163,25 +163,39 @@ export default function HomePage() {
     updatedFields: Partial<GuestEntry>
   ) => {
     markGuestsEdited();
-    setGuestSections((prev) => {
-      const updated = [...prev];
-      const entry = updated[sectionIdx].entries[entryIdx];
-      const nextEntry = {
-        ...entry,
-        ...updatedFields,
-        totalCount:
-          (updatedFields.ladiesCount ?? entry.ladiesCount) +
-          (updatedFields.gentsCount ?? entry.gentsCount) +
-          (updatedFields.kidsCount ?? entry.kidsCount),
-      };
-      updated[sectionIdx].entries[entryIdx] = nextEntry;
+    let updatedSelectedGuest: GuestEntry | null = null;
 
-      if (selectedGuest?.id === nextEntry.id) {
-        setSelectedGuest(nextEntry);
-      }
+    setGuestSections((prev) =>
+      prev.map((section, sIdx) => {
+        if (sIdx !== sectionIdx) return section;
 
-      return updated;
-    });
+        return {
+          ...section,
+          entries: section.entries.map((entry, eIdx) => {
+            if (eIdx !== entryIdx) return entry;
+
+            const nextEntry: GuestEntry = {
+              ...entry,
+              ...updatedFields,
+              totalCount:
+                (updatedFields.ladiesCount ?? entry.ladiesCount) +
+                (updatedFields.gentsCount ?? entry.gentsCount) +
+                (updatedFields.kidsCount ?? entry.kidsCount),
+            };
+
+            if (selectedGuest?.id === nextEntry.id) {
+              updatedSelectedGuest = nextEntry;
+            }
+
+            return nextEntry;
+          }),
+        };
+      })
+    );
+
+    if (updatedSelectedGuest) {
+      setSelectedGuest(updatedSelectedGuest);
+    }
   };
 
   const handleAddEntry = (sectionIdx: number) => {
@@ -196,8 +210,6 @@ export default function HomePage() {
         ladiesCount: 1,
         gentsCount: 1,
         kidsCount: 0,
-        inviteAdultsCount: 2,
-        inviteKidsCount: 0,
         totalCount: 2,
       });
       return updated;
@@ -237,17 +249,28 @@ export default function HomePage() {
 
   const handleFillAllInvites = () => {
     markGuestsEdited();
-    setGuestSections((prev) =>
-      prev.map((section) => ({
+    let updatedSelectedGuest: GuestEntry | null = null;
+
+    setGuestSections((prev) => {
+      const nextSections = prev.map((section) => ({
         ...section,
         entries: section.entries.map((entry) => ({
           ...entry,
           ...fillInviteCountsFromLedger(entry),
         })),
-      }))
-    );
-    if (selectedGuest) {
-      setSelectedGuest({ ...selectedGuest, ...fillInviteCountsFromLedger(selectedGuest) });
+      }));
+
+      if (selectedGuest) {
+        updatedSelectedGuest =
+          nextSections.flatMap((section) => section.entries).find((entry) => entry.id === selectedGuest.id) ??
+          null;
+      }
+
+      return nextSections;
+    });
+
+    if (updatedSelectedGuest) {
+      setSelectedGuest(updatedSelectedGuest);
     }
   };
 

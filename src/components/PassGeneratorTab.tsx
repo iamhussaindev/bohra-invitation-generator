@@ -6,7 +6,9 @@ import { ensureInviteFontsLoaded } from "@/lib/canvas-fonts";
 import {
   fillInviteCountsFromLedger,
   getInviteAdults,
+  getInviteAdultsDisplay,
   getInviteKids,
+  getInviteKidsDisplay,
 } from "@/lib/invite-counts";
 import type { GuestEntry, GuestSection, OverlayCoords } from "@/lib/types";
 import { DEFAULT_COORDS } from "@/lib/types";
@@ -266,12 +268,12 @@ export function PassGeneratorTab({
             <button
               type="button"
               onClick={() => {
-                guestSections.forEach((section, sIdx) => {
+                for (const [sIdx, section] of guestSections.entries()) {
                   const eIdx = section.entries.findIndex((entry) => entry.id === selectedGuest.id);
-                  if (eIdx !== -1) {
-                    onUpdateEntry(sIdx, eIdx, fillInviteCountsFromLedger(selectedGuest));
-                  }
-                });
+                  if (eIdx === -1) continue;
+                  onUpdateEntry(sIdx, eIdx, fillInviteCountsFromLedger(section.entries[eIdx]));
+                  break;
+                }
               }}
               className="text-[10px] font-semibold text-[#BF3B2B]"
             >
@@ -281,26 +283,26 @@ export function PassGeneratorTab({
           <div className="grid grid-cols-2 gap-2 text-center text-xs">
             <InviteCountField
               label="Adults"
-              value={getInviteAdults(selectedGuest)}
+              value={getInviteAdultsDisplay(selectedGuest)}
               onChange={(value) => {
-                guestSections.forEach((section, sIdx) => {
+                for (const [sIdx, section] of guestSections.entries()) {
                   const eIdx = section.entries.findIndex((entry) => entry.id === selectedGuest.id);
-                  if (eIdx !== -1) {
-                    onUpdateEntry(sIdx, eIdx, { inviteAdultsCount: value });
-                  }
-                });
+                  if (eIdx === -1) continue;
+                  onUpdateEntry(sIdx, eIdx, { inviteAdultsCount: value });
+                  break;
+                }
               }}
             />
             <InviteCountField
               label="Kids"
-              value={getInviteKids(selectedGuest)}
+              value={getInviteKidsDisplay(selectedGuest)}
               onChange={(value) => {
-                guestSections.forEach((section, sIdx) => {
+                for (const [sIdx, section] of guestSections.entries()) {
                   const eIdx = section.entries.findIndex((entry) => entry.id === selectedGuest.id);
-                  if (eIdx !== -1) {
-                    onUpdateEntry(sIdx, eIdx, { inviteKidsCount: value });
-                  }
-                });
+                  if (eIdx === -1) continue;
+                  onUpdateEntry(sIdx, eIdx, { inviteKidsCount: value });
+                  break;
+                }
               }}
             />
           </div>
