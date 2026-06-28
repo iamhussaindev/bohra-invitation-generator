@@ -1,4 +1,5 @@
 import { capitalizeGuestName, formatGuestName } from "@/lib/name-utils";
+import { withFilledInviteCounts } from "@/lib/invite-counts";
 import type { GuestEntry, GuestGender, GuestSection } from "@/lib/types";
 
 function toNumber(value: unknown, fallback = 0): number {
@@ -29,7 +30,7 @@ function normalizeEntry(raw: unknown, index: number, sectionIdx: number): GuestE
 
   if (!cleanedNames) return null;
 
-  return {
+  return withFilledInviteCounts({
     id: String(entry.id ?? `ledger-${sectionIdx}-${index}-${Date.now()}`),
     originalText: originalText || cleanedNames,
     cleanedNames,
@@ -38,7 +39,7 @@ function normalizeEntry(raw: unknown, index: number, sectionIdx: number): GuestE
     gentsCount,
     kidsCount,
     totalCount,
-  };
+  });
 }
 
 function normalizeSection(raw: unknown, sectionIdx: number): GuestSection | null {

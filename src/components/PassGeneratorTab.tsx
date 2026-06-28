@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Download, RefreshCw, Share2 } from "lucide-react";
-import { formatInviteCount } from "@/lib/canvas-fonts";
+import { ensureInviteFontsLoaded } from "@/lib/canvas-fonts";
+import {
+  fillInviteCountsFromLedger,
+  getInviteAdults,
+  getInviteKids,
+} from "@/lib/invite-counts";
 import type { GuestEntry, GuestSection, OverlayCoords } from "@/lib/types";
 import { DEFAULT_COORDS } from "@/lib/types";
 import {
@@ -13,7 +18,6 @@ import {
 } from "@/lib/client-canvas";
 import { downloadInviteImage } from "@/lib/invite-image";
 import { getRsvpPageUrl, shareInviteWithImage } from "@/lib/share-utils";
-import { ensureInviteFontsLoaded } from "@/lib/canvas-fonts";
 import { formatGuestName } from "@/lib/name-utils";
 
 interface PassGeneratorTabProps {
@@ -133,8 +137,8 @@ export function PassGeneratorTab({
       const result = await shareInviteWithImage({
         imageDataUrl: image,
         guestName: selectedGuest.cleanedNames,
-        invitees: selectedGuest.ladiesCount + selectedGuest.gentsCount,
-        kids: selectedGuest.kidsCount,
+        invitees: getInviteAdults(selectedGuest),
+        kids: getInviteKids(selectedGuest),
         rsvpUrl,
       });
 
@@ -256,10 +260,50 @@ export function PassGeneratorTab({
           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm font-bold"
         />
 
-        <div className="grid grid-cols-3 gap-2 text-center text-xs">
-          <CountPill label="Ladies" value={selectedGuest.ladiesCount} />
-          <CountPill label="Gents" value={selectedGuest.gentsCount} />
-          <CountPill label="Kids" value={selectedGuest.kidsCount} />
+        <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-bold uppercase text-amber-800">Invite Counts (on pass)</p>
+            <button
+              type="button"
+              onClick={() => {
+                guestSections.forEach((section, sIdx) => {
+                  const eIdx = section.entries.findIndex((entry) => entry.id === selectedGuest.id);
+                  if (eIdx !== -1) {
+                    onUpdateEntry(sIdx, eIdx, fillInviteCountsFromLedger(selectedGuest));
+                  }
+                });
+              }}
+              className="text-[10px] font-semibold text-[#BF3B2B]"
+            >
+              Add All
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-center text-xs">
+            <InviteCountField
+              label="Adults"
+              value={getInviteAdults(selectedGuest)}
+              onChange={(value) => {
+                guestSections.forEach((section, sIdx) => {
+                  const eIdx = section.entries.findIndex((entry) => entry.id === selectedGuest.id);
+                  if (eIdx !== -1) {
+                    onUpdateEntry(sIdx, eIdx, { inviteAdultsCount: value });
+                  }
+                });
+              }}
+            />
+            <InviteCountField
+              label="Kids"
+              value={getInviteKids(selectedGuest)}
+              onChange={(value) => {
+                guestSections.forEach((section, sIdx) => {
+                  const eIdx = section.entries.findIndex((entry) => entry.id === selectedGuest.id);
+                  if (eIdx !== -1) {
+                    onUpdateEntry(sIdx, eIdx, { inviteKidsCount: value });
+                  }
+                });
+              }}
+            />
+          </div>
         </div>
       </div>
 
@@ -335,11 +379,25 @@ export function PassGeneratorTab({
   );
 }
 
-function CountPill({ label, value }: { label: string; value: number }) {
+function InviteCountField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
   return (
-    <div className="bg-slate-50 border border-slate-200 rounded-lg py-2">
-      <div className="text-[10px] uppercase text-slate-400 font-bold">{label}</div>
-      <div className="font-bold text-slate-900">{formatInviteCount(value)}</div>
+    <div>
+      <label className="text-[10px] uppercase text-slate-400 font-bold block mb-1">{label}</label>
+      <input
+        type="number"
+        min={0}
+        value={value}
+        onChange={(e) => onChange(parseInt(e.target.value, 10) || 0)}
+        className="w-full bg-white border border-slate-200 rounded-lg py-2 text-center text-sm font-bold text-slate-900"
+      />
     </div>
   );
 }

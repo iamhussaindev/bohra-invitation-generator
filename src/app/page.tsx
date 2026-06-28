@@ -11,6 +11,7 @@ import { parseApiJson } from "@/lib/api-utils";
 import { compressImageForUpload } from "@/lib/image-utils";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { mergeGuestSections } from "@/lib/ledger-normalize";
+import { fillInviteCountsFromLedger } from "@/lib/invite-counts";
 import { computeGuestReport } from "@/lib/guest-stats";
 import { fetchGuestSections, markInviteSent, saveGuestSections } from "@/lib/supabase/guests";
 import { clearRsvps, fetchRsvps } from "@/lib/supabase/rsvps";
@@ -195,6 +196,8 @@ export default function HomePage() {
         ladiesCount: 1,
         gentsCount: 1,
         kidsCount: 0,
+        inviteAdultsCount: 2,
+        inviteKidsCount: 0,
         totalCount: 2,
       });
       return updated;
@@ -230,6 +233,22 @@ export default function HomePage() {
       }
       return updated;
     });
+  };
+
+  const handleFillAllInvites = () => {
+    markGuestsEdited();
+    setGuestSections((prev) =>
+      prev.map((section) => ({
+        ...section,
+        entries: section.entries.map((entry) => ({
+          ...entry,
+          ...fillInviteCountsFromLedger(entry),
+        })),
+      }))
+    );
+    if (selectedGuest) {
+      setSelectedGuest({ ...selectedGuest, ...fillInviteCountsFromLedger(selectedGuest) });
+    }
   };
 
   const handleRemoveEntry = (sectionIdx: number, entryIdx: number) => {
@@ -320,6 +339,7 @@ export default function HomePage() {
               setSelectedGuest(entry);
               setActiveTab("passes");
             }}
+            onFillAllInvites={handleFillAllInvites}
           />
         )}
 

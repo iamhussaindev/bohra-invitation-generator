@@ -5,13 +5,15 @@ import {
   ensureInviteFontsLoaded,
   formatInviteCount,
 } from "@/lib/canvas-fonts";
+import { getInviteAdults, getInviteKids } from "@/lib/invite-counts";
 
 export function drawGuestOverlay(
   ctx: CanvasRenderingContext2D,
   guest: GuestEntry,
   coords: OverlayCoords
 ) {
-  const adultCount = guest.ladiesCount + guest.gentsCount;
+  const adultCount = getInviteAdults(guest);
+  const kidsCount = getInviteKids(guest);
 
   ctx.fillStyle = "#C2362B";
   ctx.font = buildNameFont(coords.fontSize);
@@ -23,7 +25,7 @@ export function drawGuestOverlay(
   ctx.font = buildCountFont(coords.countFontSize);
   ctx.textAlign = "center";
   ctx.fillText(formatInviteCount(adultCount), coords.inviteesX, coords.inviteesY);
-  ctx.fillText(formatInviteCount(guest.kidsCount), coords.kidsX, coords.kidsY);
+  ctx.fillText(formatInviteCount(kidsCount), coords.kidsX, coords.kidsY);
 
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
@@ -177,9 +179,9 @@ export async function renderClientInviteImage(
     canvas.width = 800;
     canvas.height = 1000;
     generateFallbackTemplate(ctx, 800, 1000, guest.cleanedNames, {
-      ladies: guest.ladiesCount,
-      gents: guest.gentsCount,
-      kids: guest.kidsCount,
+      ladies: getInviteAdults(guest),
+      gents: 0,
+      kids: getInviteKids(guest),
     });
   }
 

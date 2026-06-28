@@ -20,6 +20,8 @@ type GuestEntryRow = {
   total_count: number;
   sort_order: number;
   invite_sent_at: string | null;
+  invite_adults_count: number | null;
+  invite_kids_count: number | null;
 };
 
 function toEntry(row: GuestEntryRow): GuestEntry {
@@ -38,6 +40,8 @@ function toEntry(row: GuestEntryRow): GuestEntry {
     gentsCount: row.gents_count,
     kidsCount: row.kids_count,
     totalCount: row.total_count,
+    inviteAdultsCount: row.invite_adults_count ?? row.ladies_count + row.gents_count,
+    inviteKidsCount: row.invite_kids_count ?? row.kids_count,
     inviteSentAt: row.invite_sent_at,
   };
 }
@@ -97,6 +101,8 @@ export async function saveGuestSections(sections: GuestSection[]): Promise<void>
         total_count: entry.totalCount,
         sort_order: entryIdx,
         invite_sent_at: entry.inviteSentAt ?? null,
+        invite_adults_count: entry.inviteAdultsCount ?? entry.ladiesCount + entry.gentsCount,
+        invite_kids_count: entry.inviteKidsCount ?? entry.kidsCount,
       });
     });
   });

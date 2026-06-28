@@ -1,4 +1,6 @@
 import { compressDataUrlToJpeg, dataUrlToBlob } from "@/lib/invite-image";
+import { getInviteAdults, getInviteKids } from "@/lib/invite-counts";
+import type { GuestEntry } from "@/lib/types";
 
 function getAppBaseUrl(): string {
   if (typeof window !== "undefined") return window.location.origin;
@@ -93,15 +95,15 @@ export async function shareInviteWithImage(options: {
 }
 
 export function getRsvpPageUrl(
-  guest: { cleanedNames: string; ladiesCount: number; gentsCount: number; kidsCount: number },
+  guest: GuestEntry,
   code: string
 ): string {
   const params = new URLSearchParams({
     code,
     g: guest.cleanedNames,
-    l: String(guest.ladiesCount),
-    gt: String(guest.gentsCount),
-    k: String(guest.kidsCount),
+    l: String(getInviteAdults(guest)),
+    gt: "0",
+    k: String(getInviteKids(guest)),
   });
   return `${getAppBaseUrl()}/rsvp?${params.toString()}`;
 }

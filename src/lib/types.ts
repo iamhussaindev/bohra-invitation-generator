@@ -8,6 +8,8 @@ export interface GuestEntry {
   ladiesCount: number;
   gentsCount: number;
   kidsCount: number;
+  inviteAdultsCount?: number;
+  inviteKidsCount?: number;
   totalCount: number;
   inviteSentAt?: string | null;
 }

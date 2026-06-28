@@ -4,11 +4,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createCanvas, loadImage } from "canvas";
 import type { GuestEntry, OverlayCoords } from "@/lib/types";
 import { DEFAULT_COORDS } from "@/lib/types";
-import {
-  drawGuestOverlay,
-  generateFallbackTemplate,
-} from "@/lib/canvas-utils";
+import { drawGuestOverlay, generateFallbackTemplate } from "@/lib/canvas-utils";
 import { registerServerCanvasFonts } from "@/lib/server-canvas-fonts";
+import { getInviteAdults, getInviteKids } from "@/lib/invite-counts";
 
 registerServerCanvasFonts();
 
@@ -32,7 +30,10 @@ export async function POST(request: NextRequest) {
     };
 
     if (!guest) {
-      return NextResponse.json({ error: "Guest data is required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Guest data is required." },
+        { status: 400 },
+      );
     }
 
     let canvas;
@@ -50,9 +51,9 @@ export async function POST(request: NextRequest) {
       canvas = createCanvas(800, 1000);
       ctx = canvas.getContext("2d");
       generateFallbackTemplate(ctx, 800, 1000, guest.cleanedNames, {
-        ladies: guest.ladiesCount,
-        gents: guest.gentsCount,
-        kids: guest.kidsCount,
+        ladies: getInviteAdults(guest),
+        gents: 0,
+        kids: getInviteKids(guest),
       });
     }
 
@@ -61,7 +62,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ image: base64 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to generate invite.";
+    const message =
+      error instanceof Error ? error.message : "Failed to generate invite.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

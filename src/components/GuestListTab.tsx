@@ -3,6 +3,11 @@
 import { useRef, useState } from "react";
 import { ChevronDown, Pencil, Plus, RefreshCw, Ticket, Trash2, Upload } from "lucide-react";
 import { capitalizeGuestName, formatGuestName } from "@/lib/name-utils";
+import {
+  fillInviteCountsFromLedger,
+  getInviteAdults,
+  getInviteKids,
+} from "@/lib/invite-counts";
 import type { GuestEntry, GuestSection } from "@/lib/types";
 
 interface GuestListTabProps {
@@ -17,6 +22,7 @@ interface GuestListTabProps {
   onRemoveSection: (sectionIdx: number) => void;
   onRemoveEntry: (sectionIdx: number, entryIdx: number) => void;
   onGeneratePass: (entry: GuestEntry) => void;
+  onFillAllInvites: () => void;
 }
 
 export function GuestListTab({
@@ -31,6 +37,7 @@ export function GuestListTab({
   onRemoveSection,
   onRemoveEntry,
   onGeneratePass,
+  onFillAllInvites,
 }: GuestListTabProps) {
   const [collapsedSections, setCollapsedSections] = useState<Record<number, boolean>>({});
   const [editingSectionIdx, setEditingSectionIdx] = useState<number | null>(null);
@@ -62,6 +69,14 @@ export function GuestListTab({
           <p className="text-xs text-slate-500 mt-1">Edit names and counts before generating passes</p>
         </div>
         <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onFillAllInvites}
+            disabled={guestSections.every((section) => section.entries.length === 0)}
+            className="bg-white border border-slate-300 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg disabled:opacity-50"
+          >
+            Add All Invites
+          </button>
           <button
             type="button"
             onClick={onAddSection}
@@ -220,6 +235,56 @@ export function GuestListTab({
                                 Total
                               </label>
                               <div className="py-2 font-bold text-slate-900">{entry.totalCount}</div>
+                            </div>
+                          </div>
+                          <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[10px] font-bold uppercase text-amber-800">
+                                Invite Counts (on pass)
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onUpdateEntry(sectionIdx, entryIdx, fillInviteCountsFromLedger(entry))
+                                }
+                                className="text-[10px] font-semibold text-[#BF3B2B] shrink-0"
+                              >
+                                Add All
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-center">
+                              <div>
+                                <label className="text-[10px] uppercase text-slate-400 font-bold block mb-1">
+                                  Adults
+                                </label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={getInviteAdults(entry)}
+                                  onChange={(e) =>
+                                    onUpdateEntry(sectionIdx, entryIdx, {
+                                      inviteAdultsCount: parseInt(e.target.value, 10) || 0,
+                                    })
+                                  }
+                                  className="w-full bg-white border border-slate-200 rounded-lg py-2 text-center text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] uppercase text-slate-400 font-bold block mb-1">
+                                  Kids
+                                </label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={getInviteKids(entry)}
+                                  onChange={(e) =>
+                                    onUpdateEntry(sectionIdx, entryIdx, {
+                                      inviteKidsCount: parseInt(e.target.value, 10) || 0,
+                                    })
+                                  }
+                                  className="w-full bg-white border border-slate-200 rounded-lg py-2 text-center text-sm"
+                                />
+                              </div>
                             </div>
                           </div>
                           <div className="flex gap-2">

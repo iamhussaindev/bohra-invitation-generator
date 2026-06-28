@@ -4,6 +4,7 @@ import {
   buildNameFont,
   formatInviteCount,
 } from "@/lib/canvas-fonts";
+import { getInviteAdults, getInviteKids } from "@/lib/invite-counts";
 import { registerServerCanvasFonts } from "@/lib/server-canvas-fonts";
 
 registerServerCanvasFonts();
@@ -131,7 +132,8 @@ export function drawGuestOverlay(
   guest: GuestEntry,
   coords: OverlayCoords,
 ) {
-  const adultCount = guest.ladiesCount + guest.gentsCount;
+  const adultCount = getInviteAdults(guest);
+  const kidsCount = getInviteKids(guest);
 
   ctx.fillStyle = "#C2362B";
   ctx.font = buildNameFont(coords.fontSize);
@@ -147,7 +149,7 @@ export function drawGuestOverlay(
     coords.inviteesX,
     coords.inviteesY,
   );
-  ctx.fillText(formatInviteCount(guest.kidsCount), coords.kidsX, coords.kidsY);
+  ctx.fillText(formatInviteCount(kidsCount), coords.kidsX, coords.kidsY);
 
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
