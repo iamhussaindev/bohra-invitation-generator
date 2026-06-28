@@ -10,11 +10,11 @@ export function registerServerCanvasFonts(): void {
 
   const fontsDir = join(process.cwd(), "public", "fonts");
   const nameFontPath = join(fontsDir, "LibreBaskerville-BoldItalic.ttf");
-  const countFontPath = join(fontsDir, "RobotoMono-Bold.ttf");
+  const countFontPath = join(fontsDir, "LibreBaskerville-BoldItalic.ttf");
 
   if (!existsSync(nameFontPath) || !existsSync(countFontPath)) {
     throw new Error(
-      "Invite fonts missing on server. Ensure public/fonts is deployed with the app."
+      "Invite fonts missing on server. Ensure public/fonts is deployed with the app.",
     );
   }
 

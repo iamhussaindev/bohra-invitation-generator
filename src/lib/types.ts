@@ -49,6 +49,6 @@ export const DEFAULT_COORDS: OverlayCoords = {
   kidsX: 2141,
   kidsY: 3898,
   fontSize: 83,
-  countFontSize: 90,
+  countFontSize: 110,
   fontFamily: '"Times New Roman", Georgia, serif',
 };

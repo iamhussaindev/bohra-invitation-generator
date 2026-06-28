@@ -1,5 +1,9 @@
 import type { GuestEntry, OverlayCoords } from "@/lib/types";
-import { buildCountFont, buildNameFont, formatInviteCount } from "@/lib/canvas-fonts";
+import {
+  buildCountFont,
+  buildNameFont,
+  formatInviteCount,
+} from "@/lib/canvas-fonts";
 import { registerServerCanvasFonts } from "@/lib/server-canvas-fonts";
 
 registerServerCanvasFonts();
@@ -11,7 +15,7 @@ export function generateFallbackTemplate(
   width: number,
   height: number,
   guestName = "Passenger Name",
-  counts = { ladies: 0, gents: 0, kids: 0 }
+  counts = { ladies: 0, gents: 0, kids: 0 },
 ) {
   const w = width;
   const h = height;
@@ -91,7 +95,11 @@ export function generateFallbackTemplate(
   ctx.fillStyle = "#333333";
   ctx.font = "14px serif";
   ctx.fillText("شریف محفل میں تشریف لا کر ہماری رونق کو بڑھائیے", 260, 460);
-  ctx.fillText("نعتوں کے مطار میں لینڈنگ کریں، خوشیوں میں اڑان بھریں", 260, 490);
+  ctx.fillText(
+    "نعتوں کے مطار میں لینڈنگ کریں، خوشیوں میں اڑان بھریں",
+    260,
+    490,
+  );
 
   ctx.fillStyle = "#000000";
   for (let i = 0; i < 40; i++) {
@@ -121,7 +129,7 @@ export function generateFallbackTemplate(
 export function drawGuestOverlay(
   ctx: CanvasContext,
   guest: GuestEntry,
-  coords: OverlayCoords
+  coords: OverlayCoords,
 ) {
   const adultCount = guest.ladiesCount + guest.gentsCount;
 
@@ -134,7 +142,11 @@ export function drawGuestOverlay(
   ctx.fillStyle = "#BF3B2B";
   ctx.font = buildCountFont(coords.countFontSize);
   ctx.textAlign = "center";
-  ctx.fillText(formatInviteCount(adultCount), coords.inviteesX, coords.inviteesY);
+  ctx.fillText(
+    formatInviteCount(adultCount),
+    coords.inviteesX,
+    coords.inviteesY,
+  );
   ctx.fillText(formatInviteCount(guest.kidsCount), coords.kidsX, coords.kidsY);
 
   ctx.textAlign = "left";
