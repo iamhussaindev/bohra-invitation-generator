@@ -4,11 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Download, RefreshCw, Share2 } from "lucide-react";
 import { ensureInviteFontsLoaded } from "@/lib/canvas-fonts";
 import {
-  fillInviteCountsFromLedger,
-  getInviteAdults,
-  getInviteAdultsDisplay,
-  getInviteKids,
-  getInviteKidsDisplay,
+  formatShareAdultInvite,
+  formatShareKidsInvite,
+  getInviteAdultsLabel,
+  getInviteKidsLabel,
+  getLedgerAdults,
+  getLedgerKids,
 } from "@/lib/invite-counts";
 import type { GuestEntry, GuestSection, OverlayCoords } from "@/lib/types";
 import { DEFAULT_COORDS } from "@/lib/types";
@@ -31,6 +32,7 @@ interface PassGeneratorTabProps {
   onUpdateEntry: (sectionIdx: number, entryIdx: number, fields: Partial<GuestEntry>) => void;
   onCoordsChange: (coords: OverlayCoords) => void;
   onInviteSent: (guestId: string) => void;
+  onFillGuestInvites: (guestId: string) => void;
 }
 
 export function PassGeneratorTab({
@@ -42,6 +44,7 @@ export function PassGeneratorTab({
   onUpdateEntry,
   onCoordsChange,
   onInviteSent,
+  onFillGuestInvites,
 }: PassGeneratorTabProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [shareStatus, setShareStatus] = useState("");
@@ -139,8 +142,8 @@ export function PassGeneratorTab({
       const result = await shareInviteWithImage({
         imageDataUrl: image,
         guestName: selectedGuest.cleanedNames,
-        invitees: getInviteAdults(selectedGuest),
-        kids: getInviteKids(selectedGuest),
+        invitees: formatShareAdultInvite(selectedGuest),
+        kids: formatShareKidsInvite(selectedGuest),
         rsvpUrl,
       });
 
@@ -267,40 +270,38 @@ export function PassGeneratorTab({
             <p className="text-[10px] font-bold uppercase text-amber-800">Invite Counts (on pass)</p>
             <button
               type="button"
-              onClick={() => {
-                for (const [sIdx, section] of guestSections.entries()) {
-                  const eIdx = section.entries.findIndex((entry) => entry.id === selectedGuest.id);
-                  if (eIdx === -1) continue;
-                  onUpdateEntry(sIdx, eIdx, fillInviteCountsFromLedger(section.entries[eIdx]));
-                  break;
-                }
-              }}
+              onClick={() => onFillGuestInvites(selectedGuest.id)}
               className="text-[10px] font-semibold text-[#BF3B2B]"
             >
               Add All
             </button>
           </div>
+          <p className="text-[10px] text-amber-900/70 text-center">
+            Ledger: {getLedgerAdults(selectedGuest)} adults · {getLedgerKids(selectedGuest)} kids
+          </p>
           <div className="grid grid-cols-2 gap-2 text-center text-xs">
             <InviteCountField
               label="Adults"
-              value={getInviteAdultsDisplay(selectedGuest)}
+              displayValue={getInviteAdultsLabel(selectedGuest)}
+              isAll={Boolean(selectedGuest.inviteAllAdults)}
               onChange={(value) => {
                 for (const [sIdx, section] of guestSections.entries()) {
                   const eIdx = section.entries.findIndex((entry) => entry.id === selectedGuest.id);
                   if (eIdx === -1) continue;
-                  onUpdateEntry(sIdx, eIdx, { inviteAdultsCount: value });
+                  onUpdateEntry(sIdx, eIdx, { inviteAdultsCount: value, inviteAllAdults: false });
                   break;
                 }
               }}
             />
             <InviteCountField
               label="Kids"
-              value={getInviteKidsDisplay(selectedGuest)}
+              displayValue={getInviteKidsLabel(selectedGuest)}
+              isAll={Boolean(selectedGuest.inviteAllKids)}
               onChange={(value) => {
                 for (const [sIdx, section] of guestSections.entries()) {
                   const eIdx = section.entries.findIndex((entry) => entry.id === selectedGuest.id);
                   if (eIdx === -1) continue;
-                  onUpdateEntry(sIdx, eIdx, { inviteKidsCount: value });
+                  onUpdateEntry(sIdx, eIdx, { inviteKidsCount: value, inviteAllKids: false });
                   break;
                 }
               }}
@@ -383,23 +384,31 @@ export function PassGeneratorTab({
 
 function InviteCountField({
   label,
-  value,
+  displayValue,
+  isAll,
   onChange,
 }: {
   label: string;
-  value: number;
+  displayValue: string;
+  isAll: boolean;
   onChange: (value: number) => void;
 }) {
   return (
     <div>
       <label className="text-[10px] uppercase text-slate-400 font-bold block mb-1">{label}</label>
-      <input
-        type="number"
-        min={0}
-        value={value}
-        onChange={(e) => onChange(parseInt(e.target.value, 10) || 0)}
-        className="w-full bg-white border border-slate-200 rounded-lg py-2 text-center text-sm font-bold text-slate-900"
-      />
+      {isAll ? (
+        <div className="w-full bg-white border border-[#BF3B2B]/30 rounded-lg py-2 text-center text-sm font-bold text-[#BF3B2B]">
+          All
+        </div>
+      ) : (
+        <input
+          type="number"
+          min={0}
+          value={displayValue}
+          onChange={(e) => onChange(parseInt(e.target.value, 10) || 0)}
+          className="w-full bg-white border border-slate-200 rounded-lg py-2 text-center text-sm font-bold text-slate-900"
+        />
+      )}
     </div>
   );
 }

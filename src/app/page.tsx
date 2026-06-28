@@ -11,7 +11,12 @@ import { parseApiJson } from "@/lib/api-utils";
 import { compressImageForUpload } from "@/lib/image-utils";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { mergeGuestSections } from "@/lib/ledger-normalize";
-import { fillInviteCountsFromLedger } from "@/lib/invite-counts";
+import {
+  applyEntryUpdate,
+  applyFillAllInvites,
+  fillInviteCountsFromLedger,
+  findGuestEntry,
+} from "@/lib/invite-counts";
 import { computeGuestReport } from "@/lib/guest-stats";
 import { fetchGuestSections, markInviteSent, saveGuestSections } from "@/lib/supabase/guests";
 import { clearRsvps, fetchRsvps } from "@/lib/supabase/rsvps";
@@ -108,6 +113,11 @@ export default function HomePage() {
 
   const guestReport = useMemo(() => computeGuestReport(guestSections), [guestSections]);
 
+  const activeGuest = useMemo(() => {
+    if (!selectedGuest) return null;
+    return findGuestEntry(guestSections, selectedGuest.id) ?? selectedGuest;
+  }, [guestSections, selectedGuest]);
+
   const markGuestsEdited = () => {
     hasUserEditedGuests.current = true;
   };
@@ -163,39 +173,16 @@ export default function HomePage() {
     updatedFields: Partial<GuestEntry>
   ) => {
     markGuestsEdited();
-    let updatedSelectedGuest: GuestEntry | null = null;
+    setGuestSections((prev) => applyEntryUpdate(prev, sectionIdx, entryIdx, updatedFields));
+  };
 
-    setGuestSections((prev) =>
-      prev.map((section, sIdx) => {
-        if (sIdx !== sectionIdx) return section;
-
-        return {
-          ...section,
-          entries: section.entries.map((entry, eIdx) => {
-            if (eIdx !== entryIdx) return entry;
-
-            const nextEntry: GuestEntry = {
-              ...entry,
-              ...updatedFields,
-              totalCount:
-                (updatedFields.ladiesCount ?? entry.ladiesCount) +
-                (updatedFields.gentsCount ?? entry.gentsCount) +
-                (updatedFields.kidsCount ?? entry.kidsCount),
-            };
-
-            if (selectedGuest?.id === nextEntry.id) {
-              updatedSelectedGuest = nextEntry;
-            }
-
-            return nextEntry;
-          }),
-        };
-      })
-    );
-
-    if (updatedSelectedGuest) {
-      setSelectedGuest(updatedSelectedGuest);
-    }
+  const handleFillEntryInvites = (sectionIdx: number, entryIdx: number) => {
+    markGuestsEdited();
+    setGuestSections((prev) => {
+      const entry = prev[sectionIdx]?.entries[entryIdx];
+      if (!entry) return prev;
+      return applyEntryUpdate(prev, sectionIdx, entryIdx, fillInviteCountsFromLedger(entry));
+    });
   };
 
   const handleAddEntry = (sectionIdx: number) => {
@@ -249,29 +236,20 @@ export default function HomePage() {
 
   const handleFillAllInvites = () => {
     markGuestsEdited();
-    let updatedSelectedGuest: GuestEntry | null = null;
+    setGuestSections((prev) => applyFillAllInvites(prev));
+  };
 
+  const handleFillGuestInvites = (guestId: string) => {
+    markGuestsEdited();
     setGuestSections((prev) => {
-      const nextSections = prev.map((section) => ({
-        ...section,
-        entries: section.entries.map((entry) => ({
-          ...entry,
-          ...fillInviteCountsFromLedger(entry),
-        })),
-      }));
-
-      if (selectedGuest) {
-        updatedSelectedGuest =
-          nextSections.flatMap((section) => section.entries).find((entry) => entry.id === selectedGuest.id) ??
-          null;
+      for (let sectionIdx = 0; sectionIdx < prev.length; sectionIdx += 1) {
+        const entryIdx = prev[sectionIdx].entries.findIndex((entry) => entry.id === guestId);
+        if (entryIdx === -1) continue;
+        const entry = prev[sectionIdx].entries[entryIdx];
+        return applyEntryUpdate(prev, sectionIdx, entryIdx, fillInviteCountsFromLedger(entry));
       }
-
-      return nextSections;
+      return prev;
     });
-
-    if (updatedSelectedGuest) {
-      setSelectedGuest(updatedSelectedGuest);
-    }
   };
 
   const handleRemoveEntry = (sectionIdx: number, entryIdx: number) => {
@@ -363,19 +341,21 @@ export default function HomePage() {
               setActiveTab("passes");
             }}
             onFillAllInvites={handleFillAllInvites}
+            onFillEntryInvites={handleFillEntryInvites}
           />
         )}
 
         {activeTab === "passes" && (
           <PassGeneratorTab
             guestSections={guestSections}
-            selectedGuest={selectedGuest}
+            selectedGuest={activeGuest}
             coords={coords}
             uploadedTemplateImage={uploadedTemplateImage}
             onSelectGuest={setSelectedGuest}
             onUpdateEntry={handleUpdateEntry}
             onCoordsChange={setCoords}
             onInviteSent={handleInviteSent}
+            onFillGuestInvites={handleFillGuestInvites}
           />
         )}
 

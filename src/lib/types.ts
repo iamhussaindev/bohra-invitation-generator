@@ -10,6 +10,8 @@ export interface GuestEntry {
   kidsCount: number;
   inviteAdultsCount?: number;
   inviteKidsCount?: number;
+  inviteAllAdults?: boolean;
+  inviteAllKids?: boolean;
   totalCount: number;
   inviteSentAt?: string | null;
 }

@@ -1,5 +1,12 @@
 import { compressDataUrlToJpeg, dataUrlToBlob } from "@/lib/invite-image";
-import { getInviteAdults, getInviteKids } from "@/lib/invite-counts";
+import {
+  formatShareAdultInvite,
+  formatShareKidsInvite,
+  getInviteAdults,
+  getInviteKids,
+  getLedgerAdults,
+  getLedgerKids,
+} from "@/lib/invite-counts";
 import type { GuestEntry } from "@/lib/types";
 
 function getAppBaseUrl(): string {
@@ -9,8 +16,8 @@ function getAppBaseUrl(): string {
 
 export function buildShareText(options: {
   guestName: string;
-  invitees: number;
-  kids: number;
+  invitees: string;
+  kids: string;
   rsvpUrl: string;
 }): string {
   return [
@@ -50,8 +57,8 @@ export type ShareInviteResult = "shared" | "whatsapp" | "downloaded";
 export async function shareInviteWithImage(options: {
   imageDataUrl: string;
   guestName: string;
-  invitees: number;
-  kids: number;
+  invitees: string;
+  kids: string;
   rsvpUrl: string;
 }): Promise<ShareInviteResult> {
   const filename = `boarding-pass-${options.guestName.replace(/\s+/g, "_")}.png`;
@@ -98,12 +105,15 @@ export function getRsvpPageUrl(
   guest: GuestEntry,
   code: string
 ): string {
+  const adultCount = guest.inviteAllAdults ? getLedgerAdults(guest) : getInviteAdults(guest);
+  const kidsCount = guest.inviteAllKids ? getLedgerKids(guest) : getInviteKids(guest);
+
   const params = new URLSearchParams({
     code,
     g: guest.cleanedNames,
-    l: String(getInviteAdults(guest)),
+    l: String(adultCount),
     gt: "0",
-    k: String(getInviteKids(guest)),
+    k: String(kidsCount),
   });
   return `${getAppBaseUrl()}/rsvp?${params.toString()}`;
 }

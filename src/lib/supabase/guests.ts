@@ -22,7 +22,15 @@ type GuestEntryRow = {
   invite_sent_at: string | null;
   invite_adults_count: number | null;
   invite_kids_count: number | null;
+  invite_all_adults: boolean;
+  invite_all_kids: boolean;
 };
+
+function toCount(value: unknown): number | undefined {
+  if (value == null) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed) : undefined;
+}
 
 function toEntry(row: GuestEntryRow): GuestEntry {
   const gender = row.gender;
@@ -36,12 +44,14 @@ function toEntry(row: GuestEntryRow): GuestEntry {
       row.gents_count
     ),
     gender: row.gender,
-    ladiesCount: row.ladies_count,
-    gentsCount: row.gents_count,
-    kidsCount: row.kids_count,
-    totalCount: row.total_count,
-    inviteAdultsCount: row.invite_adults_count ?? undefined,
-    inviteKidsCount: row.invite_kids_count ?? undefined,
+    ladiesCount: Number(row.ladies_count) || 0,
+    gentsCount: Number(row.gents_count) || 0,
+    kidsCount: Number(row.kids_count) || 0,
+    totalCount: Number(row.total_count) || 0,
+    inviteAdultsCount: toCount(row.invite_adults_count),
+    inviteKidsCount: toCount(row.invite_kids_count),
+    inviteAllAdults: Boolean(row.invite_all_adults),
+    inviteAllKids: Boolean(row.invite_all_kids),
     inviteSentAt: row.invite_sent_at,
   };
 }
@@ -103,6 +113,8 @@ export async function saveGuestSections(sections: GuestSection[]): Promise<void>
         invite_sent_at: entry.inviteSentAt ?? null,
         invite_adults_count: entry.inviteAdultsCount ?? null,
         invite_kids_count: entry.inviteKidsCount ?? null,
+        invite_all_adults: entry.inviteAllAdults ?? false,
+        invite_all_kids: entry.inviteAllKids ?? false,
       });
     });
   });
